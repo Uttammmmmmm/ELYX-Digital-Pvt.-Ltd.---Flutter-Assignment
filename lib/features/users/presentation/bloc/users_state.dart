@@ -11,128 +11,164 @@ enum UsersStatus {
   /// Nothing requested yet.
   initial,
 
-  /// First batch in flight; the screen is empty.
+  /// First page in flight; the screen has nothing to show.
   loading,
 
-  /// At least one batch has loaded.
+  /// A subsequent page is in flight; the list is on screen.
+  loadingMore,
+
+  /// At least one page has loaded.
   success,
 
-  /// The most recent request failed. [UsersState.users] may still hold data.
+  /// The most recent request failed. Loaded users may still be present.
   failure,
+
+  /// A pull-to-refresh is in flight; the OLD list is still on screen.
+  refreshing,
 }
 
 /// A single, flat state object for the users list.
 ///
-/// WHY NOT SEALED SUBCLASSES: pagination state is a list *plus* an overlay
-/// status. With `UsersLoading` / `UsersError` as separate classes every
-/// transition either loses the already-loaded users or copies them into each
-/// subclass anyway. A flat object keeps "40 users loaded, and the 5th batch
-/// just failed" representable -- exactly the case that needs an inline footer
-/// error rather than a blank error screen.
+/// WHY ONE CLASS RATHER THAN A SEALED UNION -- the mid-scroll error case
+/// decides it. With `UsersLoadingMore` / `UsersFailure` as separate variants,
+/// the failure that interrupts page 5 either discards the 40 users already on
+/// screen or forces every variant to carry them anyway, at which point the
+/// union is a flat class with extra ceremony. A status field keeps "40 users
+/// loaded AND the last page failed" directly representable, which is exactly
+/// what an inline footer error needs, and lets the UI branch on data
+/// (`allUsers.isEmpty`) rather than on which constructor happened to run.
 class UsersState extends Equatable {
   const UsersState({
     this.status = UsersStatus.initial,
-    this.users = const <UserSummary>[],
+    this.allUsers = const <UserSummary>[],
     this.visibleUsers = const <UserSummary>[],
-    this.query = '',
+    this.searchQuery = '',
     this.nextSince,
     this.hasReachedEnd = false,
-    this.isLoadingMore = false,
-    this.isRefreshing = false,
     this.failure,
+    this.rateLimitResetAt,
   });
 
   /// Overall lifecycle.
   final UsersStatus status;
 
-  /// Every user paged in so far, in API order. Never filtered -- filtering
-  /// this would destroy the cursor sequence and break scrolling.
-  final List<UserSummary> users;
+  /// Everything paged in so far, unfiltered, in API order. The pagination
+  /// sequence lives here and is never narrowed by a search.
+  final List<UserSummary> allUsers;
 
-  /// What the list renders: [users] passed through the search filter.
+  /// What the list renders: [allUsers] through the search filter.
   final List<UserSummary> visibleUsers;
 
   /// Current search text.
-  final String query;
+  final String searchQuery;
 
-  /// Opaque cursor for the next batch; null before the first load or at the
-  /// end of the list. Constraint (a) -- the Bloc never interprets this.
+  /// Opaque cursor for the next page; null before the first load and at the
+  /// end of the list. Constraint (a) -- never interpreted here.
   final int? nextSince;
 
-  /// True once GitHub has told us there is no next batch.
+  /// True once GitHub has said there is no next page.
   final bool hasReachedEnd;
 
-  /// A subsequent batch is in flight (footer spinner, not full-screen).
-  final bool isLoadingMore;
-
-  /// A pull-to-refresh is in flight.
-  final bool isRefreshing;
-
-  /// The most recent failure, or null. Kept alongside [users] so the UI can
-  /// choose between a full-screen error and an inline one.
+  /// The most recent failure. Non-null only alongside [UsersStatus.failure].
   final Failure? failure;
 
+  /// When the GitHub quota returns, so the UI can run a countdown.
+  ///
+  /// Held separately from [failure] because it must OUTLIVE the failure
+  /// status: after a retry moves the status back to `loading`, the quota is
+  /// still spent and the UI may still want to say so. Constraint (d).
+  final DateTime? rateLimitResetAt;
+
+  // -- Derived -------------------------------------------------------------
+
+  /// Nothing to show and nothing being fetched.
+  bool get isEmpty =>
+      allUsers.isEmpty &&
+      status != UsersStatus.loading &&
+      status != UsersStatus.initial;
+
+  /// A search is active and matched nothing.
+  ///
+  /// Deliberately DIFFERENT from [isEmpty]: "no loaded user matches 'zzz'"
+  /// and "GitHub returned no users" need different copy and different
+  /// actions. Conflating them tells the user their search term does not exist
+  /// on GitHub, which is not something client-side filtering can know.
+  bool get isSearchEmpty =>
+      searchQuery.trim().isNotEmpty && visibleUsers.isEmpty;
+
+  /// Whether a next-page request is worth issuing.
+  ///
+  /// Note it does NOT consider the search query: filtering is a view over
+  /// loaded data, and pagination continues underneath it. See the bloc.
+  bool get canLoadMore =>
+      !hasReachedEnd &&
+      nextSince != null &&
+      status != UsersStatus.loadingMore &&
+      status != UsersStatus.loading &&
+      status != UsersStatus.refreshing;
+
   /// True when a search query is narrowing the list.
-  bool get isFiltering => query.trim().isNotEmpty;
+  bool get isFiltering => searchQuery.trim().isNotEmpty;
 
-  /// True when the failure should take over the whole screen: something went
-  /// wrong and there is nothing to show behind it.
+  /// The failure should take over the screen: nothing behind it.
   bool get hasBlockingFailure =>
-      status == UsersStatus.failure && users.isEmpty;
+      status == UsersStatus.failure && allUsers.isEmpty;
 
-  /// True when the failure should render inline under an existing list.
+  /// The failure should render inline under an existing list.
   bool get hasInlineFailure =>
-      status == UsersStatus.failure && users.isNotEmpty;
+      status == UsersStatus.failure && allUsers.isNotEmpty;
 
-  /// The rate-limit failure, when that is what went wrong. Constraint (d).
+  /// The rate-limit failure, when that is what went wrong.
   RateLimitFailure? get rateLimitFailure {
     final Failure? f = failure;
     return f is RateLimitFailure ? f : null;
   }
 
-  /// True when a search is active but few users are loaded, so the UI should
-  /// invite loading more rather than implying "no such user exists".
+  /// A search is active over a short loaded set, so the UI should invite
+  /// loading more rather than implying the user does not exist.
   bool get shouldOfferMoreForSearch =>
       isFiltering && !hasReachedEnd && visibleUsers.length < 5;
 
-  /// Copy helper. [failure] and [nextSince] need explicit clearing, so they
-  /// get dedicated flags rather than relying on null meaning "unchanged".
+  /// Copy helper.
+  ///
+  /// [failure] and [nextSince] are nullable, so "leave alone" and "clear"
+  /// cannot both be expressed by passing null -- each gets an explicit flag.
   UsersState copyWith({
     UsersStatus? status,
-    List<UserSummary>? users,
+    List<UserSummary>? allUsers,
     List<UserSummary>? visibleUsers,
-    String? query,
+    String? searchQuery,
     int? nextSince,
     bool clearNextSince = false,
     bool? hasReachedEnd,
-    bool? isLoadingMore,
-    bool? isRefreshing,
     Failure? failure,
     bool clearFailure = false,
+    DateTime? rateLimitResetAt,
+    bool clearRateLimitResetAt = false,
   }) {
     return UsersState(
       status: status ?? this.status,
-      users: users ?? this.users,
+      allUsers: allUsers ?? this.allUsers,
       visibleUsers: visibleUsers ?? this.visibleUsers,
-      query: query ?? this.query,
+      searchQuery: searchQuery ?? this.searchQuery,
       nextSince: clearNextSince ? null : (nextSince ?? this.nextSince),
       hasReachedEnd: hasReachedEnd ?? this.hasReachedEnd,
-      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
-      isRefreshing: isRefreshing ?? this.isRefreshing,
       failure: clearFailure ? null : (failure ?? this.failure),
+      rateLimitResetAt: clearRateLimitResetAt
+          ? null
+          : (rateLimitResetAt ?? this.rateLimitResetAt),
     );
   }
 
   @override
   List<Object?> get props => <Object?>[
         status,
-        users,
+        allUsers,
         visibleUsers,
-        query,
+        searchQuery,
         nextSince,
         hasReachedEnd,
-        isLoadingMore,
-        isRefreshing,
         failure,
+        rateLimitResetAt,
       ];
 }

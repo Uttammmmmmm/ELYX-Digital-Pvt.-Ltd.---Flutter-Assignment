@@ -15,9 +15,11 @@ import 'users_state.dart';
 
 /// Drives the users list screen.
 ///
-/// Owns exactly three things the widgets must not: the pagination cursor, the
-/// search query, and which failure presentation applies. It never touches
-/// Dio, Hive or JSON -- it only calls use cases.
+/// Owns the three things widgets must not: the pagination cursor, the search
+/// query, and which failure presentation applies. It imports no Flutter
+/// widget library and never sees a BuildContext -- it calls use cases and
+/// emits state, which is what makes it testable with `bloc_test` and no
+/// network at all.
 class UsersBloc extends Bloc<UsersEvent, UsersState> {
   UsersBloc({
     required GetUsers getUsers,
@@ -26,91 +28,124 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
   })  : _getUsers = getUsers,
         _filterUsers = filterUsers,
         super(const UsersState()) {
-    on<UsersStarted>(_onStarted);
+    on<UsersFetched>(_onFetched);
 
-    // droppable(): a fast flick emits several threshold events; without this
-    // each fires an identical request. Constraint (d) -- 60 requests/hour.
-    on<UsersLoadMoreRequested>(_onLoadMore, transformer: dropWhileBusy());
+    // droppable(): a fast flick crosses the threshold several times and emits
+    // several events. Without this each fires an identical request for the
+    // SAME cursor -- duplicate users, and three of a 60/hour budget spent to
+    // fetch one page. Dropping is right rather than queueing, because the
+    // extra events carry no new information.
+    on<UsersNextPageRequested>(_onNextPage, transformer: dropWhileBusy());
 
-    // Also droppable: a second pull while one refresh is in flight is a
-    // no-op, not a second full reload.
-    on<UsersRefreshRequested>(_onRefresh, transformer: dropWhileBusy());
+    // droppable(): a second pull while a refresh is in flight is a no-op, not
+    // a second full reload of the list.
+    on<UsersRefreshed>(_onRefreshed, transformer: dropWhileBusy());
 
-    on<UsersRetryRequested>(_onRetry, transformer: dropWhileBusy());
+    on<UsersFailedPageRetried>(_onRetried, transformer: dropWhileBusy());
 
-    // Purely local work, but debounced so a 20-character query filters once
-    // rather than twenty times.
-    on<UsersSearchChanged>(
-      _onSearchChanged,
+    // restartable() + 300ms debounce: 300ms is long enough that a typed word
+    // filters once instead of per keystroke, short enough to feel immediate.
+    // Restarting matters as much as the delay -- if an older query is still
+    // being applied when a newer one arrives, its result is discarded rather
+    // than racing the newer one and briefly rendering stale matches.
+    on<UsersSearchQueryChanged>(
+      _onSearchQueryChanged,
       transformer: debounceRestartable(searchDebounce),
     );
+
+    // NOT debounced: clearing is deliberate and must feel instant.
+    on<UsersSearchCleared>(_onSearchCleared);
   }
 
   final GetUsers _getUsers;
   final FilterUsers _filterUsers;
 
-  Future<void> _onStarted(UsersStarted event, Emitter<UsersState> emit) async {
+  // -- Handlers ------------------------------------------------------------
+
+  Future<void> _onFetched(
+    UsersFetched event,
+    Emitter<UsersState> emit,
+  ) async {
     if (state.status != UsersStatus.initial) return;
+
     emit(state.copyWith(status: UsersStatus.loading, clearFailure: true));
-    await _loadPage(emit, since: null, replace: true);
+    await _load(emit, since: null, replace: true);
   }
 
-  Future<void> _onLoadMore(
-    UsersLoadMoreRequested event,
+  Future<void> _onNextPage(
+    UsersNextPageRequested event,
     Emitter<UsersState> emit,
   ) async {
-    // Two guards the transformer cannot provide: never page past the end, and
-    // never page before the first load has produced a cursor.
-    if (state.hasReachedEnd || state.status == UsersStatus.initial) return;
-    if (state.nextSince == null) return;
+    // Guards the transformer cannot provide. `canLoadMore` covers all of
+    // them: end of list reached, no cursor yet (the first page has not
+    // landed), or a load already in progress.
+    if (!state.canLoadMore) return;
 
-    emit(state.copyWith(isLoadingMore: true, clearFailure: true));
-    await _loadPage(emit, since: state.nextSince, replace: false);
+    emit(state.copyWith(status: UsersStatus.loadingMore, clearFailure: true));
+    await _load(emit, since: state.nextSince, replace: false);
   }
 
-  Future<void> _onRefresh(
-    UsersRefreshRequested event,
+  Future<void> _onRefreshed(
+    UsersRefreshed event,
     Emitter<UsersState> emit,
   ) async {
-    emit(state.copyWith(isRefreshing: true, clearFailure: true));
-    // Cursor reset to null on purpose: `since` is a cursor, not a page index,
-    // so there is no way to re-request "the current page". A refresh can only
-    // restart the walk from the beginning, and keeping the old tail would
-    // leave a hole in the middle of the sequence.
-    await _loadPage(emit, since: null, replace: true, forceRefresh: true);
+    // The OLD list stays in `allUsers` throughout. The screen is never
+    // blanked mid-refresh: `refreshing` is a status over existing data, and
+    // the list is only replaced once a new first page actually arrives.
+    emit(state.copyWith(status: UsersStatus.refreshing, clearFailure: true));
+
+    // Cursor resets to null because `since` is a cursor, not a page index --
+    // there is no way to re-request "the current page", only to restart the
+    // walk from the beginning.
+    await _load(emit, since: null, replace: true, forceRefresh: true);
   }
 
-  Future<void> _onRetry(
-    UsersRetryRequested event,
+  Future<void> _onRetried(
+    UsersFailedPageRetried event,
     Emitter<UsersState> emit,
   ) async {
-    final bool isFirstPage = state.users.isEmpty;
+    // Retry resumes from the CURRENT cursor, which the failure deliberately
+    // left intact. A cold failure (nothing loaded) retries the first page.
+    final bool isFirstPage = state.allUsers.isEmpty;
+
     emit(
       state.copyWith(
-        status: isFirstPage ? UsersStatus.loading : state.status,
-        isLoadingMore: !isFirstPage,
+        status: isFirstPage ? UsersStatus.loading : UsersStatus.loadingMore,
         clearFailure: true,
       ),
     );
-    // Resumes from the current cursor -- retry must not restart the list.
-    await _loadPage(emit, since: state.nextSince, replace: isFirstPage);
+    await _load(emit, since: state.nextSince, replace: isFirstPage);
   }
 
-  void _onSearchChanged(UsersSearchChanged event, Emitter<UsersState> emit) {
-    // `users` is deliberately untouched: filtering the source list would
-    // destroy the cursor sequence and break scrolling once the query clears.
-    emit(
-      state.copyWith(
-        query: event.query,
+  void _onSearchQueryChanged(
+    UsersSearchQueryChanged event,
+    Emitter<UsersState> emit,
+  ) =>
+      emit(_filtered(state, event.query));
+
+  void _onSearchCleared(
+    UsersSearchCleared event,
+    Emitter<UsersState> emit,
+  ) =>
+      emit(_filtered(state, ''));
+
+  // -- Internals -----------------------------------------------------------
+
+  /// Applies [query] to the loaded users.
+  ///
+  /// Purely local: no network call, and `nextSince` / `hasReachedEnd` are
+  /// untouched, so pagination is unaffected by searching. Filtering
+  /// `allUsers` itself would destroy the cursor sequence and break scrolling
+  /// the moment the query was cleared.
+  UsersState _filtered(UsersState from, String query) => from.copyWith(
+        searchQuery: query,
         visibleUsers: _filterUsers(
-          FilterUsersParams(users: state.users, query: event.query),
+          FilterUsersParams(users: from.allUsers, query: query),
         ),
-      ),
-    );
-  }
+      );
 
-  /// Fetches one batch and folds the result into state.
-  Future<void> _loadPage(
+  /// Fetches one page and folds the result into state.
+  Future<void> _load(
     Emitter<UsersState> emit, {
     required int? since,
     required bool replace,
@@ -120,44 +155,61 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
       GetUsersParams(since: since, forceRefresh: forceRefresh),
     );
 
+    // MUST be checked after every await before emitting. A Bloc closed while
+    // this request was in flight -- the user tapped back before the page
+    // landed -- would otherwise receive an emit on a closed StreamController
+    // and throw `Cannot add new events after calling close`. That crash
+    // surfaces as an unrelated red screen some frames after the navigation,
+    // which is exactly the back-navigation failure the brief describes.
+    if (isClosed) return;
+
     emit(
       result.fold(
-        (Failure failure) => state.copyWith(
-          status: UsersStatus.failure,
-          isLoadingMore: false,
-          isRefreshing: false,
-          failure: failure,
-        ),
-        (PaginatedUsers page) => _merged(page, replace: replace),
+        (Failure failure) => _withFailure(failure),
+        (PaginatedUsers page) => _withPage(page, replace: replace),
       ),
     );
   }
 
-  /// Merges a batch into state and re-applies the active search.
-  UsersState _merged(PaginatedUsers page, {required bool replace}) {
-    final List<UserSummary> users = replace
-        ? page.users
-        : _dedupe(<UserSummary>[...state.users, ...page.users]);
-
-    return state.copyWith(
-      status: UsersStatus.success,
-      users: users,
-      visibleUsers: _filterUsers(
-        FilterUsersParams(users: users, query: state.query),
-      ),
-      nextSince: page.nextSince,
-      clearNextSince: page.nextSince == null,
-      hasReachedEnd: page.hasReachedEnd,
-      isLoadingMore: false,
-      isRefreshing: false,
-      clearFailure: true,
-    );
-  }
-
-  /// Drops duplicate ids.
+  /// Records a failure WITHOUT discarding progress.
   ///
-  /// A refresh overlapping an in-flight batch, or a cursor replayed from the
-  /// cache, can deliver the same user twice -- which throws on a keyed list.
+  /// `allUsers` and `nextSince` are deliberately left untouched, so a retry
+  /// resumes from the same cursor instead of restarting the list.
+  UsersState _withFailure(Failure failure) => state.copyWith(
+        status: UsersStatus.failure,
+        failure: failure,
+        // Constraint (d): kept in state so the UI can run a countdown, and
+        // kept separately from `failure` so it survives the next retry.
+        rateLimitResetAt:
+            failure is RateLimitFailure ? failure.resetAt : null,
+      );
+
+  /// Merges a page into state and re-applies the active search.
+  UsersState _withPage(PaginatedUsers page, {required bool replace}) {
+    final List<UserSummary> merged = replace
+        ? page.users
+        : _dedupe(<UserSummary>[...state.allUsers, ...page.users]);
+
+    return _filtered(
+      state.copyWith(
+        status: UsersStatus.success,
+        allUsers: merged,
+        nextSince: page.nextSince,
+        clearNextSince: page.nextSince == null,
+        hasReachedEnd: page.hasReachedEnd,
+        clearFailure: true,
+        // A successful response means the quota is no longer spent.
+        clearRateLimitResetAt: true,
+      ),
+      state.searchQuery,
+    );
+  }
+
+  /// Drops duplicate ids while preserving order.
+  ///
+  /// A refresh overlapping an in-flight page, or a cursor replayed from the
+  /// cache, can deliver the same user twice -- which throws on a keyed list
+  /// and inflates the search corpus.
   static List<UserSummary> _dedupe(List<UserSummary> users) {
     final Set<int> seen = <int>{};
     return users

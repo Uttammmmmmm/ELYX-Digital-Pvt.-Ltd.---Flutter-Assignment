@@ -34,7 +34,7 @@ class PaginationFooter extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
 
-    if (state.isLoadingMore) {
+    if (state.status == UsersStatus.loadingMore) {
       return const Padding(
         key: Key('pagination_loading'),
         padding: EdgeInsets.symmetric(vertical: 24),
@@ -78,7 +78,7 @@ class PaginationFooter extends StatelessWidget {
         child: Column(
           children: <Widget>[
             Text(
-              'Searching ${state.users.length} loaded users. GitHub has no '
+              'Searching ${state.allUsers.length} loaded users. GitHub has no '
               'name filter, so load more to widen the search.',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodySmall
@@ -94,7 +94,7 @@ class PaginationFooter extends StatelessWidget {
       );
     }
 
-    if (state.hasReachedEnd && state.users.isNotEmpty) {
+    if (state.hasReachedEnd && state.allUsers.isNotEmpty) {
       return Padding(
         key: const Key('pagination_end'),
         padding: const EdgeInsets.symmetric(vertical: 24),

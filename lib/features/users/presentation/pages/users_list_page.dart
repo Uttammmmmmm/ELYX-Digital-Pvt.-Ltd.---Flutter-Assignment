@@ -27,7 +27,7 @@ class UsersListPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider<UsersBloc>(
-      create: (_) => sl<UsersBloc>()..add(const UsersStarted()),
+      create: (_) => sl<UsersBloc>()..add(const UsersFetched()),
       child: const UsersListView(),
     );
   }
@@ -69,15 +69,16 @@ class _UsersListViewState extends State<UsersListView> {
 
     // Safe to fire repeatedly: the bloc's droppable() transformer collapses a
     // burst into one request, and short-circuits at the end of the list.
-    context.read<UsersBloc>().add(const UsersLoadMoreRequested());
+    context.read<UsersBloc>().add(const UsersNextPageRequested());
   }
 
   Future<void> _onRefresh() async {
     final UsersBloc bloc = context.read<UsersBloc>()
-      ..add(const UsersRefreshRequested());
+      ..add(const UsersRefreshed());
     // Hold the indicator until the refresh actually settles, rather than
     // dismissing it on the next frame.
-    await bloc.stream.firstWhere((UsersState s) => !s.isRefreshing);
+    await bloc.stream
+        .firstWhere((UsersState s) => s.status != UsersStatus.refreshing);
   }
 
   void _openDetail(UserSummary user) {
@@ -96,7 +97,10 @@ class _UsersListViewState extends State<UsersListView> {
         children: <Widget>[
           UserSearchBar(
             onChanged: (String q) =>
-                context.read<UsersBloc>().add(UsersSearchChanged(q)),
+                context.read<UsersBloc>().add(UsersSearchQueryChanged(q)),
+            // Clearing bypasses the debounce -- see UsersSearchCleared.
+            onCleared: () =>
+                context.read<UsersBloc>().add(const UsersSearchCleared()),
           ),
           Expanded(
             child: BlocBuilder<UsersBloc, UsersState>(
@@ -112,7 +116,7 @@ class _UsersListViewState extends State<UsersListView> {
   Widget _body(BuildContext context, UsersState state) {
     // Cold load: skeleton rows rather than a bare spinner.
     if (state.status == UsersStatus.initial ||
-        (state.status == UsersStatus.loading && state.users.isEmpty)) {
+        (state.status == UsersStatus.loading && state.allUsers.isEmpty)) {
       return const UserTileShimmer();
     }
 
@@ -122,7 +126,7 @@ class _UsersListViewState extends State<UsersListView> {
       return AppErrorView(
         failure: state.failure!,
         onRetry: () =>
-            context.read<UsersBloc>().add(const UsersRetryRequested()),
+            context.read<UsersBloc>().add(const UsersFailedPageRetried()),
       );
     }
 
@@ -130,15 +134,15 @@ class _UsersListViewState extends State<UsersListView> {
     // does not exist on GitHub, only that they are not among those loaded.
     if (state.visibleUsers.isEmpty && state.isFiltering) {
       return EmptyView(
-        message: 'No loaded user matches "${state.query}".\n'
+        message: 'No loaded user matches "${state.searchQuery}".\n'
             'GitHub has no name filter, so only the '
-            '${state.users.length} users loaded so far are searched.',
+            '${state.allUsers.length} users loaded so far are searched.',
         action: state.hasReachedEnd
             ? null
             : OutlinedButton(
                 onPressed: () => context
                     .read<UsersBloc>()
-                    .add(const UsersLoadMoreRequested()),
+                    .add(const UsersNextPageRequested()),
                 child: const Text('Load more users'),
               ),
       );
@@ -164,9 +168,9 @@ class _UsersListViewState extends State<UsersListView> {
             return PaginationFooter(
               state: state,
               onRetry: () =>
-                  context.read<UsersBloc>().add(const UsersRetryRequested()),
+                  context.read<UsersBloc>().add(const UsersFailedPageRetried()),
               onLoadMore: () =>
-                  context.read<UsersBloc>().add(const UsersLoadMoreRequested()),
+                  context.read<UsersBloc>().add(const UsersNextPageRequested()),
             );
           }
 

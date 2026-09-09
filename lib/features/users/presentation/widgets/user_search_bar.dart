@@ -11,12 +11,17 @@ import 'package:flutter/material.dart';
 class UserSearchBar extends StatefulWidget {
   const UserSearchBar({
     required this.onChanged,
+    this.onCleared,
     this.hintText = 'Search loaded users',
     super.key,
   });
 
   /// Called on every keystroke; the Bloc debounces.
   final ValueChanged<String> onChanged;
+
+  /// Called when the clear button is tapped. Separate from [onChanged] so the
+  /// Bloc can skip the debounce -- clearing should feel immediate.
+  final VoidCallback? onCleared;
 
   /// Placeholder copy.
   final String hintText;
@@ -36,7 +41,12 @@ class _UserSearchBarState extends State<UserSearchBar> {
 
   void _clear() {
     _controller.clear();
-    widget.onChanged('');
+    final VoidCallback? onCleared = widget.onCleared;
+    if (onCleared != null) {
+      onCleared();
+    } else {
+      widget.onChanged('');
+    }
     setState(() {});
   }
 

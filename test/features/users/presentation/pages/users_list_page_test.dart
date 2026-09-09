@@ -81,7 +81,7 @@ void main() {
       ).thenAnswer((_) async => Left<Failure, PaginatedUsers>(failure));
 
   Future<void> pumpList(WidgetTester tester) async {
-    final UsersBloc bloc = buildBloc()..add(const UsersStarted());
+    final UsersBloc bloc = buildBloc()..add(const UsersFetched());
     await tester.pumpWidget(
       wrapForTest(
         BlocProvider<UsersBloc>.value(
