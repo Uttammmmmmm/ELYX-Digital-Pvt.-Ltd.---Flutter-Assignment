@@ -5,9 +5,7 @@ library;
 
 import 'package:dartz/dartz.dart';
 import 'package:elyx_digital_assignment/core/error/failures.dart';
-import 'package:elyx_digital_assignment/core/models/sourced.dart';
-import 'package:elyx_digital_assignment/features/users/domain/entities/github_user.dart';
-import 'package:elyx_digital_assignment/features/users/domain/entities/github_user_detail.dart';
+import 'package:elyx_digital_assignment/features/users/domain/entities/user_detail.dart';
 import 'package:elyx_digital_assignment/features/users/domain/usecases/get_user_detail.dart';
 import 'package:elyx_digital_assignment/features/users/presentation/bloc/user_detail_bloc.dart';
 import 'package:elyx_digital_assignment/features/users/presentation/bloc/user_detail_event.dart';
@@ -22,36 +20,30 @@ import 'package:mockito/mockito.dart';
 import '../../../../helpers/mocks.mocks.dart';
 import '../../../../helpers/widget_harness.dart';
 
-const GithubUser _mojombo = GithubUser(
-  id: 1,
-  login: 'mojombo',
-  avatarUrl: 'https://avatars.githubusercontent.com/u/1?v=4',
-  htmlUrl: 'https://github.com/mojombo',
-  type: 'User',
-  isSiteAdmin: false,
-);
-
-/// A full profile.
-const GithubUserDetail _full = GithubUserDetail(
-  user: _mojombo,
-  publicRepos: 66,
-  publicGists: 62,
-  followers: 23000,
-  following: 11,
-  name: 'Tom Preston-Werner',
-  location: 'San Francisco',
-  bio: 'Cofounder of GitHub',
-  email: null, // the common case
-);
-
-/// A profile with nothing optional set.
-const GithubUserDetail _sparse = GithubUserDetail(
-  user: _mojombo,
-  publicRepos: 0,
-  publicGists: 0,
-  followers: 1,
-  following: 0,
-);
+UserDetail _detail({
+  String? name = 'Tom Preston-Werner',
+  String? email,
+  String? bio = 'Cofounder of GitHub',
+  String? location = 'San Francisco',
+  String? company,
+  String? blog,
+}) =>
+    UserDetail(
+      id: 1,
+      login: 'mojombo',
+      avatarUrl: 'https://avatars.githubusercontent.com/u/1?v=4',
+      htmlUrl: 'https://github.com/mojombo',
+      publicRepos: 66,
+      followers: 23000,
+      following: 11,
+      createdAt: DateTime.utc(2007, 10, 20),
+      name: name,
+      email: email,
+      bio: bio,
+      location: location,
+      company: company,
+      blog: blog,
+    );
 
 void main() {
   late MockUserRepository repository;
@@ -63,24 +55,17 @@ void main() {
 
   tearDown(restoreAvatars);
 
-  void stubDetail(GithubUserDetail detail, {bool fromCache = false, DateTime? at}) {
-    when(repository.getUserDetail('mojombo', forceRefresh: anyNamed('forceRefresh')))
-        .thenAnswer(
-      (_) async => Right<Failure, Sourced<GithubUserDetail>>(
-        fromCache
-            ? Sourced<GithubUserDetail>.cache(detail, at ?? DateTime.now())
-            : Sourced<GithubUserDetail>.network(detail),
-      ),
-    );
-  }
+  void stubDetail(UserDetail detail) =>
+      when(repository.getUserDetail('mojombo'))
+          .thenAnswer((_) async => Right<Failure, UserDetail>(detail));
 
-  void stubFailure(Failure failure) =>
-      when(repository.getUserDetail(any, forceRefresh: anyNamed('forceRefresh')))
-          .thenAnswer(
-        (_) async => Left<Failure, Sourced<GithubUserDetail>>(failure),
-      );
+  void stubFailure(Failure failure) => when(repository.getUserDetail(any))
+      .thenAnswer((_) async => Left<Failure, UserDetail>(failure));
 
-  Future<void> pumpDetail(WidgetTester tester, {String login = 'mojombo'}) async {
+  Future<void> pumpDetail(
+    WidgetTester tester, {
+    String login = 'mojombo',
+  }) async {
     final UserDetailBloc bloc =
         UserDetailBloc(getUserDetail: GetUserDetail(repository))
           ..add(UserDetailRequested(login));
@@ -99,17 +84,16 @@ void main() {
   testWidgets('renders the display name and handle', (
     WidgetTester tester,
   ) async {
-    stubDetail(_full);
+    stubDetail(_detail());
     await pumpDetail(tester);
 
-    expect(find.byKey(const Key('detail_name')), findsOneWidget);
     expect(find.text('Tom Preston-Werner'), findsOneWidget);
     expect(find.text('@mojombo'), findsOneWidget);
   });
 
-  testWidgets('name falls back to the login when GitHub has none '
+  testWidgets('displayName falls back to the login when GitHub has none '
       '(constraint c)', (WidgetTester tester) async {
-    stubDetail(_sparse);
+    stubDetail(_detail(name: null, bio: null, location: null));
     await pumpDetail(tester);
 
     final Text name =
@@ -122,7 +106,7 @@ void main() {
   testWidgets('a hidden email shows the fallback, not a blank', (
     WidgetTester tester,
   ) async {
-    stubDetail(_full);
+    stubDetail(_detail());
     await pumpDetail(tester);
 
     expect(find.text(UserDisplay.emailUnavailable), findsOneWidget);
@@ -130,7 +114,7 @@ void main() {
 
   testWidgets('the phone row says GitHub does not provide it, and is styled '
       'as unavailable (constraint c)', (WidgetTester tester) async {
-    stubDetail(_full);
+    stubDetail(_detail());
     await pumpDetail(tester);
 
     expect(find.text('Not provided by GitHub API'), findsOneWidget);
@@ -145,7 +129,7 @@ void main() {
   testWidgets('renders the public counters, abbreviated', (
     WidgetTester tester,
   ) async {
-    stubDetail(_full);
+    stubDetail(_detail());
     await pumpDetail(tester);
 
     expect(find.text('66'), findsOneWidget);
@@ -156,7 +140,7 @@ void main() {
   testWidgets('shows the bio and location when present', (
     WidgetTester tester,
   ) async {
-    stubDetail(_full);
+    stubDetail(_detail());
     await pumpDetail(tester);
 
     expect(find.text('Cofounder of GitHub'), findsOneWidget);
@@ -166,7 +150,7 @@ void main() {
   testWidgets('absent optional fields fall back rather than vanish', (
     WidgetTester tester,
   ) async {
-    stubDetail(_sparse);
+    stubDetail(_detail(name: null, bio: null, location: null));
     await pumpDetail(tester);
 
     // Location, company and website are all missing on this profile.
@@ -193,28 +177,5 @@ void main() {
 
     expect(find.byKey(const Key('rate_limit_countdown')), findsOneWidget);
     expect(find.textContaining('Access returns in'), findsOneWidget);
-  });
-
-  testWidgets('a cached profile shows the stale banner', (
-    WidgetTester tester,
-  ) async {
-    stubDetail(
-      _full,
-      fromCache: true,
-      at: DateTime.now().subtract(const Duration(hours: 3)),
-    );
-    await pumpDetail(tester);
-
-    expect(find.byKey(const Key('stale_banner_text')), findsOneWidget);
-    expect(find.textContaining('3 hours ago'), findsOneWidget);
-  });
-
-  testWidgets('a live profile shows no stale banner', (
-    WidgetTester tester,
-  ) async {
-    stubDetail(_full);
-    await pumpDetail(tester);
-
-    expect(find.byKey(const Key('stale_banner_text')), findsNothing);
   });
 }

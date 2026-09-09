@@ -1,46 +1,46 @@
-/// Load a single user's full profile.
+/// Load one user's full profile.
 library;
 
 import 'package:dartz/dartz.dart';
 import 'package:equatable/equatable.dart';
 
 import '../../../../core/error/failures.dart';
-import '../../../../core/models/sourced.dart';
 import '../../../../core/usecase/usecase.dart';
-import '../entities/github_user_detail.dart';
+import '../entities/user_detail.dart';
 import '../repositories/user_repository.dart';
 
 /// Arguments for [GetUserDetail].
 class GetUserDetailParams extends Equatable {
-  const GetUserDetailParams(this.login, {this.forceRefresh = false});
+  const GetUserDetailParams(this.login);
 
-  /// The user's handle. The detail endpoint keys on login, not numeric id.
+  /// The handle to fetch. Validated by the use case before any I/O.
   final String login;
 
-  /// Bypass the cache on read.
-  final bool forceRefresh;
-
   @override
-  List<Object?> get props => <Object?>[login, forceRefresh];
+  List<Object?> get props => <Object?>[login];
 }
 
-/// Fetches one user's profile, cache-first.
+/// Fetches one user's profile, rejecting a blank handle before any request.
 ///
-/// Constraint (d): this is the only source of name/email/bio, and each call
-/// costs one of 60 hourly requests. It is invoked on navigation only -- never
-/// prefetched across a list -- and its results are cached for 24h.
-class GetUserDetail
-    implements UseCase<Sourced<GithubUserDetail>, GetUserDetailParams> {
+/// The guard is not defensive noise. An empty login would produce a request
+/// to `/users/` -- a different endpoint that returns a *list*, so the failure
+/// would surface as a confusing parse error rather than "you asked for
+/// nothing". It would also spend one of 60 hourly requests to learn something
+/// knowable locally. Validating here, rather than in the repository, keeps
+/// the rule next to the operation it constrains.
+class GetUserDetail implements UseCase<UserDetail, GetUserDetailParams> {
   const GetUserDetail(this._repository);
 
   final UserRepository _repository;
 
   @override
-  Future<Either<Failure, Sourced<GithubUserDetail>>> call(
-    GetUserDetailParams params,
-  ) =>
-      _repository.getUserDetail(
-        params.login,
-        forceRefresh: params.forceRefresh,
+  Future<Either<Failure, UserDetail>> call(GetUserDetailParams params) async {
+    final String login = params.login.trim();
+    if (login.isEmpty) {
+      return const Left<Failure, UserDetail>(
+        ValidationFailure('A GitHub username is required.'),
       );
+    }
+    return _repository.getUserDetail(login);
+  }
 }

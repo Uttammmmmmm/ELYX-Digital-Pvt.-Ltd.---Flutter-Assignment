@@ -4,9 +4,9 @@ import 'package:elyx_digital_assignment/core/constants/cache_constants.dart';
 import 'package:elyx_digital_assignment/core/storage/cache_entry.dart';
 import 'package:elyx_digital_assignment/core/storage/json_box.dart';
 import 'package:elyx_digital_assignment/features/users/data/datasources/user_local_data_source.dart';
-import 'package:elyx_digital_assignment/features/users/data/models/github_user_detail_model.dart';
-import 'package:elyx_digital_assignment/features/users/data/models/github_user_model.dart';
-import 'package:elyx_digital_assignment/features/users/data/models/users_page_model.dart';
+import 'package:elyx_digital_assignment/features/users/data/models/paginated_users_model.dart';
+import 'package:elyx_digital_assignment/features/users/data/models/user_detail_model.dart';
+import 'package:elyx_digital_assignment/features/users/data/models/user_summary_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 
@@ -36,57 +36,65 @@ void main() {
     await tempDir.delete(recursive: true);
   });
 
-  const UsersPageModel page = UsersPageModel(
-    users: <GithubUserModel>[
-      GithubUserModel(
+  const PaginatedUsersModel page = PaginatedUsersModel(
+    users: <UserSummaryModel>[
+      UserSummaryModel(
         id: 1,
         login: 'mojombo',
         avatarUrl: 'https://avatars.githubusercontent.com/u/1?v=4',
         htmlUrl: 'https://github.com/mojombo',
         type: 'User',
-        isSiteAdmin: false,
+        siteAdmin: false,
       ),
     ],
-    nextCursor: 1,
+    nextSince: 1,
+    hasReachedEnd: false,
   );
 
-  group('users pages', () {
+  group('users batches', () {
     test('round trips through disk and stamps a cache time', () async {
       await dataSource.cacheUsersPage(null, page);
 
-      final CacheEntry<UsersPageModel>? entry = dataSource.readUsersPage(null);
+      final CacheEntry<PaginatedUsersModel>? entry =
+          dataSource.readUsersPage(null);
 
       expect(entry, isNotNull);
       expect(entry!.value, page);
       expect(entry.isStale(CacheConstants.usersPageTtl), isFalse);
     });
 
-    test('keys pages by cursor, so pages do not overwrite each other', () async {
+    test('keys batches by cursor, so they do not overwrite each other',
+        () async {
       await dataSource.cacheUsersPage(null, page);
       await dataSource.cacheUsersPage(
         46,
-        const UsersPageModel(users: <GithubUserModel>[], nextCursor: 99),
+        const PaginatedUsersModel(
+          users: <UserSummaryModel>[],
+          nextSince: 99,
+          hasReachedEnd: false,
+        ),
       );
 
-      expect(dataSource.readUsersPage(null)!.value.nextCursor, 1);
-      expect(dataSource.readUsersPage(46)!.value.nextCursor, 99);
+      expect(dataSource.readUsersPage(null)!.value.nextSince, 1);
+      expect(dataSource.readUsersPage(46)!.value.nextSince, 99);
     });
 
     test('returns null on a miss', () {
       expect(dataSource.readUsersPage(12345), isNull);
     });
 
-    test('reports stale once past the TTL', () async {
+    test('reports stale once past the TTL, but stays readable', () async {
       await JsonBox(pagesBox).write(
         CacheConstants.usersPageKey(null),
         page.toJson(),
         now: DateTime.now().subtract(const Duration(hours: 2)),
       );
 
-      final CacheEntry<UsersPageModel> entry = dataSource.readUsersPage(null)!;
+      final CacheEntry<PaginatedUsersModel> entry =
+          dataSource.readUsersPage(null)!;
 
       expect(entry.isStale(CacheConstants.usersPageTtl), isTrue);
-      expect(entry.value, page, reason: 'stale is still readable');
+      expect(entry.value, page, reason: 'stale is still usable');
     });
 
     test('a corrupt entry reads as a miss instead of throwing', () async {
@@ -98,36 +106,33 @@ void main() {
 
   group('user details', () {
     test('round trips and is retrievable case-insensitively', () async {
-      final GithubUserDetailModel detail =
-          GithubUserDetailModel.fromJson(fixtureMap('user_detail.json'));
+      final UserDetailModel detail =
+          UserDetailModel.fromJson(fixtureMap('user_detail.json'));
 
       await dataSource.cacheUserDetail(detail);
 
       expect(dataSource.readUserDetail('MoJoMbO')!.value, detail);
     });
 
-    test('displayNames builds the sparse login -> name index (constraint e)',
-        () async {
-      await dataSource.cacheUserDetail(
-        GithubUserDetailModel.fromJson(fixtureMap('user_detail.json')),
-      );
-      await dataSource.cacheUserDetail(
-        GithubUserDetailModel.fromJson(fixtureMap('user_detail_sparse.json')),
-      );
+    test('preserves nulls across the round trip (constraint c)', () async {
+      final UserDetailModel detail =
+          UserDetailModel.fromJson(fixtureMap('user_detail.json'));
 
-      final Map<String, String> names = dataSource.displayNames();
+      await dataSource.cacheUserDetail(detail);
+      final UserDetailModel restored =
+          dataSource.readUserDetail('mojombo')!.value;
 
-      expect(names, <String, String>{'mojombo': 'Tom Preston-Werner'});
-      expect(names.containsKey('ghost'), isFalse,
-          reason: 'a null name contributes nothing to search');
+      expect(restored.email, isNull);
+      expect(restored.bio, isNull);
+      expect(restored.name, 'Tom Preston-Werner');
     });
   });
 
   group('clearUsersPages', () {
-    test('empties pages but preserves expensive detail documents', () async {
+    test('empties batches but preserves expensive detail documents', () async {
       await dataSource.cacheUsersPage(null, page);
       await dataSource.cacheUserDetail(
-        GithubUserDetailModel.fromJson(fixtureMap('user_detail.json')),
+        UserDetailModel.fromJson(fixtureMap('user_detail.json')),
       );
 
       await dataSource.clearUsersPages();

@@ -12,21 +12,15 @@ sealed class UserDetailEvent extends Equatable {
 }
 
 /// Load the profile for [login], cache-first.
+///
+/// There is no separate "force refresh" event: [UserRepository.getUserDetail]
+/// takes no such flag, so a re-request inside the 24h TTL is answered from
+/// cache. Retry after a failure still works, because a failure leaves nothing
+/// cached to answer from.
 final class UserDetailRequested extends UserDetailEvent {
   const UserDetailRequested(this.login);
 
-  /// The handle to fetch. The detail endpoint keys on login, not numeric id.
-  final String login;
-
-  @override
-  List<Object?> get props => <Object?>[login];
-}
-
-/// Force a network refetch, bypassing the 24h cache.
-final class UserDetailRefreshRequested extends UserDetailEvent {
-  const UserDetailRefreshRequested(this.login);
-
-  /// The handle to refetch.
+  /// The handle to fetch.
   final String login;
 
   @override

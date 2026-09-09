@@ -3,15 +3,15 @@ library;
 
 import 'package:flutter/material.dart';
 
-import '../../domain/entities/github_user_detail.dart';
+import '../../domain/entities/user_detail.dart';
 import '../formatters/user_display.dart';
 
-/// The four public counters from the profile document.
+/// The public counters from the profile document.
 class DetailStatRow extends StatelessWidget {
   const DetailStatRow({required this.detail, super.key});
 
   /// The profile whose counters to show.
-  final GithubUserDetail detail;
+  final UserDetail detail;
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +19,6 @@ class DetailStatRow extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: <Widget>[
         _Stat(label: 'Repos', value: detail.publicRepos),
-        _Stat(label: 'Gists', value: detail.publicGists),
         _Stat(label: 'Followers', value: detail.followers),
         _Stat(label: 'Following', value: detail.following),
       ],

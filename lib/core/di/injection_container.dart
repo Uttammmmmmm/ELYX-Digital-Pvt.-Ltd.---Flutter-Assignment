@@ -12,7 +12,6 @@ import '../../features/users/domain/repositories/user_repository.dart';
 import '../../features/users/domain/usecases/filter_users.dart';
 import '../../features/users/domain/usecases/get_user_detail.dart';
 import '../../features/users/domain/usecases/get_users.dart';
-import '../../features/users/domain/usecases/refresh_users.dart';
 import '../../features/users/presentation/bloc/user_detail_bloc.dart';
 import '../../features/users/presentation/bloc/users_bloc.dart';
 import '../constants/cache_constants.dart';
@@ -71,9 +70,6 @@ Future<void> initDependencies() async {
   // -- Use cases ------------------------------------------------------------
   sl
     ..registerLazySingleton<GetUsers>(() => GetUsers(sl<UserRepository>()))
-    ..registerLazySingleton<RefreshUsers>(
-      () => RefreshUsers(sl<UserRepository>()),
-    )
     ..registerLazySingleton<GetUserDetail>(
       () => GetUserDetail(sl<UserRepository>()),
     )
@@ -85,9 +81,7 @@ Future<void> initDependencies() async {
     ..registerFactory<UsersBloc>(
       () => UsersBloc(
         getUsers: sl<GetUsers>(),
-        refreshUsers: sl<RefreshUsers>(),
         filterUsers: sl<FilterUsers>(),
-        repository: sl<UserRepository>(),
       ),
     )
     ..registerFactory<UserDetailBloc>(

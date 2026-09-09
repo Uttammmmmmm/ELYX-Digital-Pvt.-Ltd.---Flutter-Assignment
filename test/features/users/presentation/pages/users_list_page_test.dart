@@ -11,12 +11,10 @@ library;
 
 import 'package:dartz/dartz.dart';
 import 'package:elyx_digital_assignment/core/error/failures.dart';
-import 'package:elyx_digital_assignment/core/models/sourced.dart';
-import 'package:elyx_digital_assignment/features/users/domain/entities/github_user.dart';
-import 'package:elyx_digital_assignment/features/users/domain/entities/users_page.dart';
+import 'package:elyx_digital_assignment/features/users/domain/entities/paginated_users.dart';
+import 'package:elyx_digital_assignment/features/users/domain/entities/user_summary.dart';
 import 'package:elyx_digital_assignment/features/users/domain/usecases/filter_users.dart';
 import 'package:elyx_digital_assignment/features/users/domain/usecases/get_users.dart';
-import 'package:elyx_digital_assignment/features/users/domain/usecases/refresh_users.dart';
 import 'package:elyx_digital_assignment/features/users/presentation/bloc/users_bloc.dart';
 import 'package:elyx_digital_assignment/features/users/presentation/bloc/users_event.dart';
 import 'package:elyx_digital_assignment/features/users/presentation/pages/users_list_page.dart';
@@ -29,18 +27,18 @@ import 'package:mockito/mockito.dart';
 import '../../../../helpers/mocks.mocks.dart';
 import '../../../../helpers/widget_harness.dart';
 
-GithubUser _user(int id, String login) => GithubUser(
+UserSummary _u(int id, String login) => UserSummary(
       id: id,
       login: login,
       avatarUrl: 'https://avatars.githubusercontent.com/u/$id?v=4',
       htmlUrl: 'https://github.com/$login',
       type: 'User',
-      isSiteAdmin: false,
+      siteAdmin: false,
     );
 
-final List<GithubUser> _users = <GithubUser>[
-  _user(1, 'mojombo'),
-  _user(2, 'defunkt'),
+final List<UserSummary> _users = <UserSummary>[
+  _u(1, 'mojombo'),
+  _u(2, 'defunkt'),
 ];
 
 void main() {
@@ -49,53 +47,40 @@ void main() {
   setUp(() {
     installFakeAvatars();
     repository = MockUserRepository();
-    when(repository.cachedDisplayNames())
-        .thenAnswer((_) async => const <String, String>{});
-    when(repository.clearUsersCache()).thenAnswer((_) async {});
   });
 
   tearDown(restoreAvatars);
 
   UsersBloc buildBloc() => UsersBloc(
         getUsers: GetUsers(repository),
-        refreshUsers: RefreshUsers(repository),
         filterUsers: const FilterUsers(),
-        repository: repository,
         searchDebounce: Duration.zero,
       );
 
-  void stubSuccess({
-    List<GithubUser>? users,
-    int? nextCursor,
-    bool fromCache = false,
-    DateTime? cachedAt,
-  }) {
-    final UsersPage page =
-        UsersPage(users: users ?? _users, nextCursor: nextCursor);
-    when(
-      repository.getUsers(
-        cursor: anyNamed('cursor'),
-        forceRefresh: anyNamed('forceRefresh'),
-      ),
-    ).thenAnswer(
-      (_) async => Right<Failure, Sourced<UsersPage>>(
-        fromCache
-            ? Sourced<UsersPage>.cache(page, cachedAt ?? DateTime.now())
-            : Sourced<UsersPage>.network(page),
-      ),
-    );
-  }
-
-  void stubFailure(Failure failure) => when(
+  void stubSuccess({List<UserSummary>? users, int? nextSince}) => when(
         repository.getUsers(
-          cursor: anyNamed('cursor'),
+          since: anyNamed('since'),
+          perPage: anyNamed('perPage'),
           forceRefresh: anyNamed('forceRefresh'),
         ),
       ).thenAnswer(
-        (_) async => Left<Failure, Sourced<UsersPage>>(failure),
+        (_) async => Right<Failure, PaginatedUsers>(
+          PaginatedUsers.fromBatch(
+            users: users ?? _users,
+            nextSince: nextSince,
+          ),
+        ),
       );
 
-  Future<UsersBloc> pumpList(WidgetTester tester) async {
+  void stubFailure(Failure failure) => when(
+        repository.getUsers(
+          since: anyNamed('since'),
+          perPage: anyNamed('perPage'),
+          forceRefresh: anyNamed('forceRefresh'),
+        ),
+      ).thenAnswer((_) async => Left<Failure, PaginatedUsers>(failure));
+
+  Future<void> pumpList(WidgetTester tester) async {
     final UsersBloc bloc = buildBloc()..add(const UsersStarted());
     await tester.pumpWidget(
       wrapForTest(
@@ -106,18 +91,18 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    return bloc;
   }
 
-  testWidgets('shows a skeleton before the first page arrives', (
+  testWidgets('shows a skeleton before the first batch arrives', (
     WidgetTester tester,
   ) async {
-    stubSuccess(nextCursor: 2);
-    final UsersBloc bloc = buildBloc();
-
+    stubSuccess(nextSince: 2);
     await tester.pumpWidget(
       wrapForTest(
-        BlocProvider<UsersBloc>.value(value: bloc, child: const UsersListView()),
+        BlocProvider<UsersBloc>.value(
+          value: buildBloc(),
+          child: const UsersListView(),
+        ),
       ),
     );
     await tester.pump(); // initial frame only -- do not settle
@@ -127,7 +112,7 @@ void main() {
   });
 
   testWidgets('renders one tile per user', (WidgetTester tester) async {
-    stubSuccess(nextCursor: 2);
+    stubSuccess(nextSince: 2);
     await pumpList(tester);
 
     expect(find.byType(UserListTile), findsNWidgets(2));
@@ -136,7 +121,7 @@ void main() {
   });
 
   testWidgets('typing filters the visible tiles', (WidgetTester tester) async {
-    stubSuccess(nextCursor: 2);
+    stubSuccess(nextSince: 2);
     await pumpList(tester);
 
     await tester.enterText(find.byKey(const Key('user_search_field')), 'mojo');
@@ -146,9 +131,24 @@ void main() {
     expect(find.text('defunkt'), findsNothing);
   });
 
+  testWidgets('a regex metacharacter in the field does not throw or wildcard '
+      '(constraint e)', (WidgetTester tester) async {
+    stubSuccess(nextSince: 2);
+    await pumpList(tester);
+
+    await tester.enterText(
+      find.byKey(const Key('user_search_field')),
+      'm.jombo',
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(UserListTile), findsNothing);
+  });
+
   testWidgets('a search with no match explains the client-side limit, '
-      'not "user does not exist" (constraint e)', (WidgetTester tester) async {
-    stubSuccess(nextCursor: 2);
+      'not "user does not exist"', (WidgetTester tester) async {
+    stubSuccess(nextSince: 2);
     await pumpList(tester);
 
     await tester.enterText(find.byKey(const Key('user_search_field')), 'zzzz');
@@ -162,7 +162,7 @@ void main() {
   testWidgets('clearing the query restores every tile', (
     WidgetTester tester,
   ) async {
-    stubSuccess(nextCursor: 2);
+    stubSuccess(nextSince: 2);
     await pumpList(tester);
 
     await tester.enterText(find.byKey(const Key('user_search_field')), 'mojo');
@@ -188,7 +188,7 @@ void main() {
     stubFailure(const NetworkFailure());
     await pumpList(tester);
 
-    stubSuccess(nextCursor: 2);
+    stubSuccess(nextSince: 2);
     await tester.tap(find.text('Try again'));
     await tester.pumpAndSettle();
 
@@ -223,28 +223,6 @@ void main() {
     expect(find.textContaining('GITHUB_TOKEN'), findsOneWidget);
   });
 
-  testWidgets('cached data shows the stale banner', (
-    WidgetTester tester,
-  ) async {
-    stubSuccess(
-      nextCursor: 2,
-      fromCache: true,
-      cachedAt: DateTime.now().subtract(const Duration(minutes: 20)),
-    );
-    await pumpList(tester);
-
-    expect(find.byKey(const Key('stale_banner_text')), findsOneWidget);
-    expect(find.textContaining('Showing saved data'), findsOneWidget);
-    expect(find.textContaining('20 minutes ago'), findsOneWidget);
-  });
-
-  testWidgets('live data shows no stale banner', (WidgetTester tester) async {
-    stubSuccess(nextCursor: 2);
-    await pumpList(tester);
-
-    expect(find.byKey(const Key('stale_banner_text')), findsNothing);
-  });
-
   testWidgets('the end of the list is marked', (WidgetTester tester) async {
     stubSuccess(); // no next cursor
     await pumpList(tester);
@@ -253,15 +231,21 @@ void main() {
     expect(find.text('No more users'), findsOneWidget);
   });
 
-  testWidgets('pull to refresh re-requests the first page', (
+  testWidgets('pull to refresh restarts the walk with forceRefresh', (
     WidgetTester tester,
   ) async {
-    stubSuccess(nextCursor: 2);
+    stubSuccess(nextSince: 2);
     await pumpList(tester);
 
     await tester.fling(find.byType(ListView), const Offset(0, 400), 1000);
     await tester.pumpAndSettle();
 
-    verify(repository.clearUsersCache()).called(1);
+    verify(
+      repository.getUsers(
+        since: null,
+        perPage: anyNamed('perPage'),
+        forceRefresh: true,
+      ),
+    ).called(1);
   });
 }

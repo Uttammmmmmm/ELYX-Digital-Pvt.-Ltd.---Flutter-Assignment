@@ -4,17 +4,17 @@ library;
 import 'package:equatable/equatable.dart';
 
 import '../../../../core/error/failures.dart';
-import '../../domain/entities/github_user.dart';
+import '../../domain/entities/user_summary.dart';
 
 /// Lifecycle of the users list.
 enum UsersStatus {
   /// Nothing requested yet.
   initial,
 
-  /// First page in flight; the screen is empty.
+  /// First batch in flight; the screen is empty.
   loading,
 
-  /// At least one page has loaded.
+  /// At least one batch has loaded.
   success,
 
   /// The most recent request failed. [UsersState.users] may still hold data.
@@ -24,25 +24,22 @@ enum UsersStatus {
 /// A single, flat state object for the users list.
 ///
 /// WHY NOT SEALED SUBCLASSES: pagination state is a list *plus* an overlay
-/// status. With `UsersLoading` / `UsersError` as separate classes, every
-/// transition either loses the already-loaded users or has to copy them into
-/// each subclass anyway. A flat object with a status field keeps "40 users
-/// loaded, and the 5th page just failed" representable -- which is exactly the
-/// case that needs an inline footer error rather than a blank error screen.
+/// status. With `UsersLoading` / `UsersError` as separate classes every
+/// transition either loses the already-loaded users or copies them into each
+/// subclass anyway. A flat object keeps "40 users loaded, and the 5th batch
+/// just failed" representable -- exactly the case that needs an inline footer
+/// error rather than a blank error screen.
 class UsersState extends Equatable {
   const UsersState({
     this.status = UsersStatus.initial,
-    this.users = const <GithubUser>[],
-    this.visibleUsers = const <GithubUser>[],
-    this.knownNames = const <String, String>{},
+    this.users = const <UserSummary>[],
+    this.visibleUsers = const <UserSummary>[],
     this.query = '',
-    this.cursor,
+    this.nextSince,
     this.hasReachedEnd = false,
     this.isLoadingMore = false,
     this.isRefreshing = false,
     this.failure,
-    this.isFromCache = false,
-    this.cachedAt,
   });
 
   /// Overall lifecycle.
@@ -50,26 +47,22 @@ class UsersState extends Equatable {
 
   /// Every user paged in so far, in API order. Never filtered -- filtering
   /// this would destroy the cursor sequence and break scrolling.
-  final List<GithubUser> users;
+  final List<UserSummary> users;
 
-  /// What the list should render: [users] passed through the search filter.
-  final List<GithubUser> visibleUsers;
-
-  /// Sparse `login -> name` index from cached detail documents, used by
-  /// search. Sparse because names cost one request each. Constraint (e).
-  final Map<String, String> knownNames;
+  /// What the list renders: [users] passed through the search filter.
+  final List<UserSummary> visibleUsers;
 
   /// Current search text.
   final String query;
 
-  /// Opaque cursor for the next page; null before the first load or at the
-  /// end of the list. Constraint (a) -- the bloc never interprets this.
-  final int? cursor;
+  /// Opaque cursor for the next batch; null before the first load or at the
+  /// end of the list. Constraint (a) -- the Bloc never interprets this.
+  final int? nextSince;
 
-  /// True once GitHub has told us there is no next page.
+  /// True once GitHub has told us there is no next batch.
   final bool hasReachedEnd;
 
-  /// A subsequent page is in flight (footer spinner, not full-screen).
+  /// A subsequent batch is in flight (footer spinner, not full-screen).
   final bool isLoadingMore;
 
   /// A pull-to-refresh is in flight.
@@ -78,12 +71,6 @@ class UsersState extends Equatable {
   /// The most recent failure, or null. Kept alongside [users] so the UI can
   /// choose between a full-screen error and an inline one.
   final Failure? failure;
-
-  /// True when the visible data came from the cache rather than the network.
-  final bool isFromCache;
-
-  /// When the cached copy was written; null for live data.
-  final DateTime? cachedAt;
 
   /// True when a search query is narrowing the list.
   bool get isFiltering => query.trim().isNotEmpty;
@@ -108,38 +95,31 @@ class UsersState extends Equatable {
   bool get shouldOfferMoreForSearch =>
       isFiltering && !hasReachedEnd && visibleUsers.length < 5;
 
-  /// Copy helper. [failure] and [cachedAt] need explicit clearing, so they get
-  /// dedicated flags rather than relying on null meaning "unchanged".
+  /// Copy helper. [failure] and [nextSince] need explicit clearing, so they
+  /// get dedicated flags rather than relying on null meaning "unchanged".
   UsersState copyWith({
     UsersStatus? status,
-    List<GithubUser>? users,
-    List<GithubUser>? visibleUsers,
-    Map<String, String>? knownNames,
+    List<UserSummary>? users,
+    List<UserSummary>? visibleUsers,
     String? query,
-    int? cursor,
-    bool clearCursor = false,
+    int? nextSince,
+    bool clearNextSince = false,
     bool? hasReachedEnd,
     bool? isLoadingMore,
     bool? isRefreshing,
     Failure? failure,
     bool clearFailure = false,
-    bool? isFromCache,
-    DateTime? cachedAt,
-    bool clearCachedAt = false,
   }) {
     return UsersState(
       status: status ?? this.status,
       users: users ?? this.users,
       visibleUsers: visibleUsers ?? this.visibleUsers,
-      knownNames: knownNames ?? this.knownNames,
       query: query ?? this.query,
-      cursor: clearCursor ? null : (cursor ?? this.cursor),
+      nextSince: clearNextSince ? null : (nextSince ?? this.nextSince),
       hasReachedEnd: hasReachedEnd ?? this.hasReachedEnd,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       isRefreshing: isRefreshing ?? this.isRefreshing,
       failure: clearFailure ? null : (failure ?? this.failure),
-      isFromCache: isFromCache ?? this.isFromCache,
-      cachedAt: clearCachedAt ? null : (cachedAt ?? this.cachedAt),
     );
   }
 
@@ -148,14 +128,11 @@ class UsersState extends Equatable {
         status,
         users,
         visibleUsers,
-        knownNames,
         query,
-        cursor,
+        nextSince,
         hasReachedEnd,
         isLoadingMore,
         isRefreshing,
         failure,
-        isFromCache,
-        cachedAt,
       ];
 }

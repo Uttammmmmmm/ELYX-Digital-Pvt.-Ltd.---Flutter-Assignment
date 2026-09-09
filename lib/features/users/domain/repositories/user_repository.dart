@@ -1,47 +1,49 @@
-/// The contract the domain needs; the data layer implements it.
+/// The users contract. Declared by the domain, implemented by the data layer.
 library;
 
 import 'package:dartz/dartz.dart';
 
 import '../../../../core/error/failures.dart';
-import '../../../../core/models/sourced.dart';
-import '../entities/github_user_detail.dart';
-import '../entities/users_page.dart';
+import '../entities/paginated_users.dart';
+import '../entities/user_detail.dart';
 
-/// Access to GitHub users, from network or cache.
+/// Access to GitHub users, from wherever the data layer chooses to get them.
 ///
-/// Declared here -- in the layer that *consumes* it, not the one that
-/// implements it -- so the dependency arrow points inward. Nothing in this file
-/// mentions HTTP, Hive, or Dio.
+/// Nothing in this file mentions HTTP, Dio, Hive, JSON or caching. Those are
+/// the implementation's business; a caller only needs to know it will receive
+/// either a [Failure] or the data.
 abstract interface class UserRepository {
-  /// Fetches one page of users starting after [cursor].
+  /// Fetches one batch of users.
   ///
-  /// [cursor] is the opaque token from a previous [UsersPage.nextCursor];
-  /// null requests the first page. When [forceRefresh] is true the cache is
-  /// bypassed on the way in (it is still written on the way out).
-  /// Returns a [Sourced] result so callers can tell a live page from a cached
-  /// one served during an outage or a rate-limit block.
-  Future<Either<Failure, Sourced<UsersPage>>> getUsers({
-    int? cursor,
-    bool forceRefresh = false,
+  /// CURSOR, NOT PAGE INDEX: [since] is an opaque cursor obtained from a
+  /// previous [PaginatedUsers.nextSince]; passing null requests the first
+  /// batch. Callers therefore CANNOT jump to an arbitrary page -- there is no
+  /// "page 7". Pages are only reachable by walking forward from the start,
+  /// one request at a time, which is why the UI offers infinite scroll rather
+  /// than a numbered pager, and why a refresh restarts from the beginning
+  /// instead of reloading "the current page".
+  ///
+  /// [perPage] is a hint; GitHub caps it at 100 and may return fewer.
+  ///
+  /// FORCE REFRESH: when false (the default) the implementation may answer
+  /// from cache if what it holds is still fresh. When true it must bypass the
+  /// cache ON READ and go to the network -- this is what pull-to-refresh
+  /// passes, and without it a refresh could be served the very data the user
+  /// is trying to replace. It does NOT disable writing to the cache: a forced
+  /// fetch still updates it. Nor does it promise a network result: if the
+  /// request fails, the implementation may still fall back to cached data
+  /// rather than showing an error over nothing.
+  Future<Either<Failure, PaginatedUsers>> getUsers({
+    int? since,
+    int perPage,
+    bool forceRefresh,
   });
 
   /// Fetches the full profile for [login].
-  Future<Either<Failure, Sourced<GithubUserDetail>>> getUserDetail(
-    String login, {
-    bool forceRefresh = false,
-  });
-
-  /// Best-effort `login -> name` index assembled from cached detail documents.
   ///
-  /// Constraint (e): the list endpoint carries no names, so client-side search
-  /// can only match names for users whose detail has already been fetched.
-  /// Deliberately NOT `Either` -- a failure here degrades search to
-  /// login-only, which is not worth an error path.
-  Future<Map<String, String>> cachedDisplayNames();
-
-  /// Drops cached list pages. Used by pull-to-refresh so a re-fetch cannot be
-  /// served stale data. Detail documents are left alone -- they are expensive
-  /// to rebuild and rarely wrong.
-  Future<void> clearUsersCache();
+  /// Keyed by login, not numeric id -- that is what the endpoint accepts.
+  /// This is the ONLY source of name, email, bio and location, and each call
+  /// costs one of 60 hourly requests, so callers should invoke it on
+  /// navigation and never prefetch it across a list.
+  Future<Either<Failure, UserDetail>> getUserDetail(String login);
 }

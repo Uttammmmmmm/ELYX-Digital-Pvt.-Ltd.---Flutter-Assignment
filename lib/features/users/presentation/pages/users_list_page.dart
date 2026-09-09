@@ -7,9 +7,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/widgets/app_error_view.dart';
 import '../../../../core/widgets/empty_view.dart';
-import '../../../../core/widgets/stale_data_banner.dart';
 import '../../../../core/widgets/user_tile_shimmer.dart';
-import '../../domain/entities/github_user.dart';
+import '../../domain/entities/user_summary.dart';
 import '../bloc/users_bloc.dart';
 import '../bloc/users_event.dart';
 import '../bloc/users_state.dart';
@@ -81,7 +80,7 @@ class _UsersListViewState extends State<UsersListView> {
     await bloc.stream.firstWhere((UsersState s) => !s.isRefreshing);
   }
 
-  void _openDetail(GithubUser user) {
+  void _openDetail(UserSummary user) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => UserDetailPage(login: user.login),
@@ -98,19 +97,6 @@ class _UsersListViewState extends State<UsersListView> {
           UserSearchBar(
             onChanged: (String q) =>
                 context.read<UsersBloc>().add(UsersSearchChanged(q)),
-          ),
-          BlocBuilder<UsersBloc, UsersState>(
-            buildWhen: (UsersState a, UsersState b) =>
-                a.isFromCache != b.isFromCache || a.cachedAt != b.cachedAt,
-            builder: (BuildContext context, UsersState state) =>
-                state.isFromCache
-                    ? StaleDataBanner(
-                        cachedAt: state.cachedAt,
-                        onRefresh: () => context
-                            .read<UsersBloc>()
-                            .add(const UsersRefreshRequested()),
-                      )
-                    : const SizedBox.shrink(),
           ),
           Expanded(
             child: BlocBuilder<UsersBloc, UsersState>(
@@ -184,7 +170,7 @@ class _UsersListViewState extends State<UsersListView> {
             );
           }
 
-          final GithubUser user = state.visibleUsers[index];
+          final UserSummary user = state.visibleUsers[index];
           return UserListTile(
             key: ValueKey<int>(user.id),
             user: user,

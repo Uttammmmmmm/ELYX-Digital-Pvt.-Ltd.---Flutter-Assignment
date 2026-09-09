@@ -1,7 +1,7 @@
 /// Display rules for user data.
 library;
 
-import '../../domain/entities/github_user_detail.dart';
+import '../../domain/entities/user_detail.dart';
 
 /// Turns nullable domain values into strings fit for the screen.
 ///
@@ -28,22 +28,19 @@ abstract final class UserDisplay {
   /// Copy for any other absent optional field.
   static const String fieldUnavailable = 'Not provided';
 
-  /// Display name: the real name when set, otherwise the login.
+  /// True when the display name is falling back to the login, so the UI can
+  /// skip rendering the handle twice.
   ///
-  /// Never blank -- login is always present, so the header cannot render
-  /// empty. Constraint (b)/(c).
-  static String name(GithubUserDetail detail) => detail.name ?? detail.login;
-
-  /// True when [name] is falling back to the login, so the UI can skip
-  /// rendering the handle twice.
-  static bool namesAreSame(GithubUserDetail detail) => detail.name == null;
+  /// The name itself now comes from [UserDetail.displayName] -- that rule is
+  /// about the domain, not about this screen. What stays here is the purely
+  /// visual consequence of the fallback.
+  static bool namesAreSame(UserDetail detail) => detail.name == null;
 
   /// The handle, prefixed.
   static String handle(String login) => '@$login';
 
   /// Email, or the "not public" fallback.
-  static String email(GithubUserDetail detail) =>
-      detail.email ?? emailUnavailable;
+  static String email(UserDetail detail) => detail.email ?? emailUnavailable;
 
   /// Any optional free-text field, or the generic fallback.
   static String orUnavailable(String? value) => value ?? fieldUnavailable;

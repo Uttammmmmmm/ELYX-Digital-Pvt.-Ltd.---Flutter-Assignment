@@ -4,11 +4,11 @@ library;
 import 'package:equatable/equatable.dart';
 
 import '../../../../core/error/failures.dart';
-import '../../domain/entities/github_user_detail.dart';
+import '../../domain/entities/user_detail.dart';
 
 /// Detail-screen state.
 ///
-/// WHY SEALED HERE, BUT FLAT FOR THE LIST: this screen shows one object with
+/// WHY SEALED HERE BUT FLAT FOR THE LIST: this screen shows one object with
 /// no incremental accumulation, so the states are genuinely mutually
 /// exclusive and there is no partial data to carry across a transition.
 /// Sealed subclasses make the UI's `switch` exhaustive.
@@ -31,23 +31,13 @@ final class UserDetailLoading extends UserDetailState {
 
 /// The profile is available.
 final class UserDetailLoaded extends UserDetailState {
-  const UserDetailLoaded({
-    required this.detail,
-    this.isFromCache = false,
-    this.cachedAt,
-  });
+  const UserDetailLoaded(this.detail);
 
   /// The profile.
-  final GithubUserDetail detail;
-
-  /// True when served from Hive rather than the network, so the UI can say so.
-  final bool isFromCache;
-
-  /// When the cached copy was written; null for live data.
-  final DateTime? cachedAt;
+  final UserDetail detail;
 
   @override
-  List<Object?> get props => <Object?>[detail, isFromCache, cachedAt];
+  List<Object?> get props => <Object?>[detail];
 }
 
 /// The load failed and there is nothing to show.

@@ -4,10 +4,10 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../../../core/widgets/network_avatar.dart';
-import '../../domain/entities/github_user.dart';
+import '../../domain/entities/user_summary.dart';
 import '../formatters/user_display.dart';
 
-/// Renders one [GithubUser].
+/// Renders one [UserSummary].
 ///
 /// Shows only what the LIST endpoint actually returns -- login, avatar, type.
 /// No name and no email, because constraint (b) means we do not have them and
@@ -17,7 +17,7 @@ class UserListTile extends StatelessWidget {
   const UserListTile({required this.user, required this.onTap, super.key});
 
   /// The user to render.
-  final GithubUser user;
+  final UserSummary user;
 
   /// Navigation callback.
   final VoidCallback onTap;

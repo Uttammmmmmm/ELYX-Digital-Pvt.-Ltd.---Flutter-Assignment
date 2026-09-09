@@ -6,8 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/bloc/event_transformers.dart';
 import '../../../../core/error/failures.dart';
-import '../../../../core/models/sourced.dart';
-import '../../domain/entities/github_user_detail.dart';
+import '../../domain/entities/user_detail.dart';
 import '../../domain/usecases/get_user_detail.dart';
 import 'user_detail_event.dart';
 import 'user_detail_state.dart';
@@ -22,44 +21,20 @@ class UserDetailBloc extends Bloc<UserDetailEvent, UserDetailState> {
       : _getUserDetail = getUserDetail,
         super(const UserDetailInitial()) {
     // Droppable so a double tap on Retry cannot spend two requests.
-    on<UserDetailRequested>(
-      (UserDetailRequested e, Emitter<UserDetailState> emit) =>
-          _load(emit, e.login, forceRefresh: false),
-      transformer: dropWhileBusy(),
-    );
-
-    on<UserDetailRefreshRequested>(
-      (UserDetailRefreshRequested e, Emitter<UserDetailState> emit) =>
-          _load(emit, e.login, forceRefresh: true),
-      transformer: dropWhileBusy(),
-    );
+    on<UserDetailRequested>(_onRequested, transformer: dropWhileBusy());
   }
 
   final GetUserDetail _getUserDetail;
 
-  Future<void> _load(
+  Future<void> _onRequested(
+    UserDetailRequested event,
     Emitter<UserDetailState> emit,
-    String login, {
-    required bool forceRefresh,
-  }) async {
-    // Keep the current profile on screen during a refresh; only a cold load
-    // gets a spinner.
-    if (state is! UserDetailLoaded) emit(const UserDetailLoading());
+  ) async {
+    emit(const UserDetailLoading());
 
-    final Either<Failure, Sourced<GithubUserDetail>> result =
-        await _getUserDetail(
-      GetUserDetailParams(login, forceRefresh: forceRefresh),
-    );
+    final Either<Failure, UserDetail> result =
+        await _getUserDetail(GetUserDetailParams(event.login));
 
-    emit(
-      result.fold(
-        UserDetailError.new,
-        (Sourced<GithubUserDetail> sourced) => UserDetailLoaded(
-          detail: sourced.value,
-          isFromCache: sourced.isFromCache,
-          cachedAt: sourced.cachedAt,
-        ),
-      ),
-    );
+    emit(result.fold(UserDetailError.new, UserDetailLoaded.new));
   }
 }

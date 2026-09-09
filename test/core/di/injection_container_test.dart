@@ -9,7 +9,6 @@ import 'package:elyx_digital_assignment/features/users/domain/repositories/user_
 import 'package:elyx_digital_assignment/features/users/domain/usecases/filter_users.dart';
 import 'package:elyx_digital_assignment/features/users/domain/usecases/get_user_detail.dart';
 import 'package:elyx_digital_assignment/features/users/domain/usecases/get_users.dart';
-import 'package:elyx_digital_assignment/features/users/domain/usecases/refresh_users.dart';
 import 'package:elyx_digital_assignment/features/users/presentation/bloc/user_detail_bloc.dart';
 import 'package:elyx_digital_assignment/features/users/presentation/bloc/users_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -40,7 +39,6 @@ void main() {
     expect(sl<NetworkInfo>(), isA<NetworkInfoImpl>());
     expect(sl<UserRepository>(), isNotNull);
     expect(sl<GetUsers>(), isNotNull);
-    expect(sl<RefreshUsers>(), isNotNull);
     expect(sl<GetUserDetail>(), isNotNull);
     expect(sl<FilterUsers>(), isNotNull);
   });
