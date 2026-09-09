@@ -4,7 +4,7 @@ import 'package:elyx_digital_assignment/core/error/exceptions.dart';
 import 'package:elyx_digital_assignment/core/network/dio_client.dart';
 import 'package:elyx_digital_assignment/core/network/rate_limit_tracker.dart';
 import 'package:elyx_digital_assignment/features/users/data/datasources/user_remote_data_source.dart';
-import 'package:elyx_digital_assignment/features/users/data/models/paginated_users_model.dart';
+import 'package:elyx_digital_assignment/features/users/domain/entities/paginated_users.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../../fixtures/fixture_reader.dart';
@@ -90,7 +90,7 @@ void main() {
         ),
       );
 
-      final PaginatedUsersModel page = await harness.source.getUsers();
+      final PaginatedUsers page = await harness.source.getUsers();
 
       expect(page.users, hasLength(3));
       expect(page.nextSince, 9919);
@@ -99,7 +99,7 @@ void main() {
     test('an empty array ends pagination', () async {
       final harness = build((_) => const FakeReply(statusCode: 200, body: '[]'));
 
-      final PaginatedUsersModel page = await harness.source.getUsers(since: 999999);
+      final PaginatedUsers page = await harness.source.getUsers(since: 999999);
 
       expect(page.users, isEmpty);
       expect(page.hasReachedEnd, isTrue);

@@ -11,8 +11,11 @@ import 'package:elyx_digital_assignment/features/users/domain/usecases/get_user_
 import 'package:elyx_digital_assignment/features/users/domain/usecases/get_users.dart';
 import 'package:elyx_digital_assignment/features/users/presentation/bloc/user_detail_bloc.dart';
 import 'package:elyx_digital_assignment/features/users/presentation/bloc/users_bloc.dart';
+import 'package:elyx_digital_assignment/features/users/data/models/cached_page_model.dart';
+import 'package:elyx_digital_assignment/features/users/data/models/user_detail_model.dart';
+import 'package:elyx_digital_assignment/core/storage/hive_initializer.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 /// A DI graph only fails at runtime, on the screen that needs it. Resolving
 /// every registration once in CI turns that into a build failure instead.
@@ -22,8 +25,10 @@ void main() {
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp('di_test');
     Hive.init(tempDir.path);
-    await Hive.openBox<String>(CacheConstants.usersPageBox);
-    await Hive.openBox<String>(CacheConstants.userDetailBox);
+    // Adapters MUST be registered before a typed box is opened.
+    HiveInitializer.registerAdaptersOnce();
+    await Hive.openBox<CachedPageModel>(CacheConstants.usersPageBox);
+    await Hive.openBox<UserDetailModel>(CacheConstants.userDetailBox);
     await initDependencies();
   });
 

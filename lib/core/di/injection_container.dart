@@ -3,7 +3,7 @@ library;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:get_it/get_it.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 import '../../features/users/data/datasources/user_local_data_source.dart';
 import '../../features/users/data/datasources/user_remote_data_source.dart';
@@ -18,7 +18,8 @@ import '../constants/cache_constants.dart';
 import '../network/dio_client.dart';
 import '../network/network_info.dart';
 import '../network/rate_limit_tracker.dart';
-import '../storage/json_box.dart';
+import '../../features/users/data/models/cached_page_model.dart';
+import '../../features/users/data/models/user_detail_model.dart';
 
 /// The service locator.
 final GetIt sl = GetIt.instance;
@@ -51,10 +52,12 @@ Future<void> initDependencies() async {
       () => UserRemoteDataSourceImpl(sl<DioClient>()),
     )
     ..registerLazySingleton<UserLocalDataSource>(
+      // Boxes are already open and adapters already registered --
+      // HiveInitializer.init() ran before this. `Hive.box<T>` is the
+      // synchronous accessor for an open box.
       () => UserLocalDataSourceImpl(
-        // Boxes are already open -- HiveInitializer ran before this.
-        pagesBox: JsonBox(Hive.box<String>(CacheConstants.usersPageBox)),
-        detailBox: JsonBox(Hive.box<String>(CacheConstants.userDetailBox)),
+        pagesBox: Hive.box<CachedPageModel>(CacheConstants.usersPageBox),
+        detailsBox: Hive.box<UserDetailModel>(CacheConstants.userDetailBox),
       ),
     );
 
