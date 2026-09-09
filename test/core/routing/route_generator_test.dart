@@ -16,8 +16,6 @@ const UserSummary _summary = UserSummary(
   accountType: 'User',
 );
 
-/// `RouteSettings.arguments` is `Object?`, so wrong arguments are invisible to
-/// the compiler. These tests pin the runtime behaviour at that boundary.
 void main() {
   Widget buildFor(RouteSettings settings, WidgetTester tester) {
     final Route<dynamic> route = RouteGenerator.generate(settings);

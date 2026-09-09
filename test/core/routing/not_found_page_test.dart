@@ -4,7 +4,6 @@ import 'package:elyx_digital_assignment/core/routing/route_generator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// A routing mistake must degrade to a screen the user can leave, not a crash.
 void main() {
   testWidgets('renders the offending route name', (WidgetTester tester) async {
     await tester.pumpWidget(

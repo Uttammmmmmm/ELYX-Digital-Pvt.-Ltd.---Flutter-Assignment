@@ -1,4 +1,3 @@
-/// A user as a card, for medium and expanded layouts.
 library;
 
 import 'package:flutter/material.dart';
@@ -8,11 +7,6 @@ import '../../domain/entities/user_summary.dart';
 import '../pages/user_detail_page.dart' show userAvatarHeroTag;
 import 'user_avatar.dart';
 
-/// The grid counterpart to `UserListTile`.
-///
-/// Same data, same tap target, same Hero tag -- only the arrangement differs.
-/// Reusing the tile in a grid would waste the width; a row of avatar + text
-/// pinned left looks broken in a 280dp-wide cell.
 class UserGridCard extends StatelessWidget {
   const UserGridCard({
     required this.user,
@@ -22,17 +16,12 @@ class UserGridCard extends StatelessWidget {
     super.key,
   });
 
-  /// The user to render.
   final UserSummary user;
 
-  /// Navigation callback.
   final VoidCallback onTap;
 
-  /// Whether this card is the one shown in the detail pane of a split view.
   final bool selected;
 
-  /// Whether to wrap the avatar in a [Hero]. Must be false in a split view --
-  /// see [UserListTile.heroEnabled] for why.
   final bool heroEnabled;
 
   @override

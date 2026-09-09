@@ -1,8 +1,6 @@
 import 'package:elyx_digital_assignment/features/users/data/datasources/api/link_header_parser.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// GitHub-only: reqres returns page counts in the body and sends no Link
-/// header at all.
 void main() {
   const LinkHeaderParser parser = LinkHeaderParser();
 

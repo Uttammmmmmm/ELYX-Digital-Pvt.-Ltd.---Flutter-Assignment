@@ -1,4 +1,3 @@
-/// Mockito mock declarations for the users feature.
 library;
 
 import 'package:elyx_digital_assignment/core/network/network_info.dart';
@@ -11,8 +10,7 @@ import 'package:mockito/annotations.dart';
   UsersApi,
   UserLocalDataSource,
   NetworkInfo,
-  // Blocs are tested against a mocked repository with REAL use cases, so the
-  // bloc -> use case -> repository wiring is covered rather than stubbed out.
+
   UserRepository,
 ])
 void main() {}

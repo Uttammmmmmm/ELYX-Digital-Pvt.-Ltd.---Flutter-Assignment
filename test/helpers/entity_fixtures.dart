@@ -1,10 +1,8 @@
-/// Builders for domain entities, so tests state only what they care about.
 library;
 
 import 'package:elyx_digital_assignment/features/users/domain/entities/user_detail.dart';
 import 'package:elyx_digital_assignment/features/users/domain/entities/user_summary.dart';
 
-/// A reqres-shaped user: real names, an email, no handle.
 UserSummary reqresUser(int id, {String? first, String? last, String? email}) =>
     UserSummary(
       id: id,
@@ -15,7 +13,6 @@ UserSummary reqresUser(int id, {String? first, String? last, String? email}) =>
       email: email ?? 'user$id@reqres.in',
     );
 
-/// A GitHub-shaped user: a handle, no name, no email.
 UserSummary githubUser(int id, String handle) => UserSummary(
   id: id,
   detailId: handle,
@@ -25,13 +22,11 @@ UserSummary githubUser(int id, String handle) => UserSummary(
   accountType: 'User',
 );
 
-/// A profile with no source-specific extras -- the reqres shape.
 UserDetail reqresDetail(int id, {String? first, String? last, String? email}) =>
     UserDetail(
       user: reqresUser(id, first: first, last: last, email: email),
     );
 
-/// A profile with GitHub's extras populated.
 UserDetail githubDetail(
   int id,
   String handle, {

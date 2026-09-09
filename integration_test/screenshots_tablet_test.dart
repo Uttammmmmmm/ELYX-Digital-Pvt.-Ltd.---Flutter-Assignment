@@ -1,6 +1,3 @@
-/// Captures the two-pane tablet layout. Run against a booted iPad simulator.
-///
-/// See screenshots_test.dart for the command; only the device id differs.
 library;
 
 import 'package:elyx_digital_assignment/app.dart';
@@ -31,14 +28,13 @@ void main() {
     await tester.pumpWidget(const ElyxApp());
     await settleWithNetwork(tester);
 
-    // Both panes mounted, nothing picked yet.
     await binding.takeScreenshot('06-tablet-split-empty');
 
     final Finder firstTile = find.byKey(const Key('user_tile_2'));
     if (firstTile.evaluate().isNotEmpty) {
       await tester.tap(firstTile);
       await settleWithNetwork(tester);
-      // The list is still there beside the profile -- the whole point.
+
       await binding.takeScreenshot('07-tablet-split-selected');
     }
   });

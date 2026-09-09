@@ -65,8 +65,6 @@ void main() {
             'displayName',
             'Janet Weaver',
           )
-          // reqres always returns an email -- unlike GitHub, where it is
-          // null for most accounts.
           .having((UserDetailState s) => s.detail?.hasEmail, 'hasEmail', true)
           .having((UserDetailState s) => s.seed, 'seed still kept', _seed),
     ],

@@ -1,18 +1,12 @@
-/// Placeholder rows for the detail body while the profile loads.
 library;
 
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 
-/// Skeleton for the lower half of the detail screen.
-///
-/// Only the BODY is a skeleton -- the header is already real, rendered from
-/// the seed the list handed over. So the screen never opens blank.
 class DetailBodySkeleton extends StatelessWidget {
   const DetailBodySkeleton({this.rowCount = 6, super.key});
 
-  /// How many placeholder rows to draw.
   final int rowCount;
 
   @override

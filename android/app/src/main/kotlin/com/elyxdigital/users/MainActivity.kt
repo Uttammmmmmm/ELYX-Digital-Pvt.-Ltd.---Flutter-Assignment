@@ -1,4 +1,4 @@
-package com.example.elyx_digital_assignment
+package com.elyxdigital.users
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -1,24 +1,14 @@
-/// Executable architecture rule: `package:dio` may not leak out of the
-/// networking core.
-///
-/// The Dart analyzer has no built-in import-ban, and pulling in `custom_lint`
-/// or `dart_code_metrics` for one rule is not worth the dependency. A test is
-/// cheap, has zero production cost, runs in CI with everything else, and fails
-/// with an actionable message naming the offending file.
 library;
 
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// The only files permitted to import Dio. Adding to this list should require
-/// a conversation in code review -- that is the point.
 const Set<String> kDioAllowlist = <String>{
   'lib/core/network/dio_client.dart',
   'lib/core/network/header_reader.dart',
   'lib/core/network/rate_limit_interceptor.dart',
-  // Produces the app's error vocabulary from Dio's. Move it into
-  // core/network/ if you want the allowlist down to three entries.
+
   'lib/core/error/error_mapper.dart',
 };
 

@@ -1,8 +1,6 @@
 @Timeout(Duration(seconds: 15))
 library;
 
-// See users_list_view_test.dart for why these tests never close their bloc.
-
 import 'package:dartz/dartz.dart';
 import 'package:elyx_digital_assignment/core/error/failures.dart';
 import 'package:elyx_digital_assignment/features/users/domain/entities/user_detail.dart';
@@ -86,7 +84,6 @@ void main() {
       stubDetail(detailWith());
       await pump(tester, request: false);
 
-      // The seed's name is on screen with no request made at all.
       expect(find.text('Janet Weaver'), findsWidgets);
       expect(find.byKey(const Key('detail_body_skeleton')), findsOneWidget);
       verifyZeroInteractions(repository);
@@ -175,7 +172,7 @@ void main() {
       expect(row.label, UsersStrings.labelPhone);
       expect(row.value, 'Not provided by the API');
       expect(row.unavailable, isTrue);
-      // Neither API is named: the user did not choose the source.
+
       expect(row.value.contains('GitHub'), isFalse);
       expect(row.value.contains('reqres'), isFalse);
     });
@@ -207,7 +204,7 @@ void main() {
       expect(find.text('23k'), findsOneWidget);
       expect(find.text('SF'), findsOneWidget);
       expect(find.text('Cofounder'), findsOneWidget);
-      // member-since via intl.
+
       final DetailInfoRow row = tester.widget<DetailInfoRow>(
         find.byKey(const Key('row_member_since')),
       );

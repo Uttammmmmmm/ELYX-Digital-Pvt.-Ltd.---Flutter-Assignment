@@ -70,6 +70,61 @@ flutter run --dart-define=API_SOURCE=reqres --dart-define=REQRES_API_KEY=your-ke
 
 ---
 
+## Release builds
+
+Release builds are signed with a real upload key, minified and resource-shrunk
+(R8), and must never be shipped with the debug key.
+
+### Signing
+
+`android/key.properties` and the `.jks` are git-ignored; `key.properties.example`
+is the committed template. Generate a keystore once:
+
+```bash
+keytool -genkeypair -v -keystore android/app/upload-keystore.jks \
+  -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+```
+
+Then copy `android/key.properties.example` to `android/key.properties` and fill
+it in. If that file is absent the build falls back to debug signing **and prints
+a warning** — it does not fail, so a fresh clone still builds, but the output is
+not publishable.
+
+### Building
+
+```bash
+flutter build appbundle --release        # for Play Store (preferred)
+flutter build apk --release --split-per-abi   # ~16-20 MB per ABI
+```
+
+A universal APK is ~52 MB because it carries every ABI; the split APKs are
+15.8 MB (armeabi-v7a), 18.3 MB (arm64-v8a) and 19.6 MB (x86_64). Play delivers
+the right one automatically from the AAB.
+
+> Stripping debug symbols from the native libraries needs a complete Android
+> SDK. If `flutter doctor` reports `cmdline-tools component is missing`, the
+> bundle still builds but keeps its symbols and is larger than it should be.
+
+### CI
+
+`.github/workflows/ci.yml` runs format, `analyze --fatal-infos` and the full
+test suite with coverage on every push and PR, then builds a release AAB.
+Signing in CI reads four repository secrets — `KEYSTORE_BASE64`,
+`STORE_PASSWORD`, `KEY_PASSWORD` and `KEY_ALIAS`; without them the build step
+still runs and falls back to debug signing.
+
+### Error reporting
+
+Every uncaught error funnels through `ErrorReporter`
+(`lib/core/observability/error_reporter.dart`), wired in `main()` to
+`FlutterError.onError`, `PlatformDispatcher.onError` and the guarded zone. The
+default implementation logs through `dart:developer` in **all** build modes and
+keeps a bounded breadcrumb ring buffer. Adding Crashlytics or Sentry means
+writing one more `ErrorReporter` and passing it to `di.init` — no call site
+changes.
+
+---
+
 ## DESIGN DECISIONS
 
 ### 1. Which API? Both — the brief contradicts itself

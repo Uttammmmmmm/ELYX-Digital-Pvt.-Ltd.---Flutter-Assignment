@@ -1,9 +1,6 @@
 @Timeout(Duration(seconds: 15))
 library;
 
-// NOTE ON BLOC DISPOSAL: as in users_list_view_test.dart, these tests do not
-// close their blocs -- `Bloc.close()` never completes under `testWidgets`.
-
 import 'dart:async';
 
 import 'package:dartz/dartz.dart';
@@ -43,10 +40,8 @@ final List<UserSummary> _users = <UserSummary>[
   _u(2, 'defunkt'),
 ];
 
-/// Wider than the 840dp `expanded` breakpoint: two panes.
 const Size _tablet = Size(1200, 900);
 
-/// Narrower: one pane.
 const Size _phone = Size(400, 800);
 
 void main() {
@@ -83,9 +78,6 @@ void main() {
       ),
     );
 
-    // UserDetailPage resolves its bloc from the locator, so the split view
-    // cannot be pumped without one. Registering the real bloc over a mock
-    // repository keeps this an integration test of the actual composition.
     sl.registerFactoryParam<UserDetailBloc, UserSummary, void>(
       (UserSummary seed, _) =>
           UserDetailBloc(getUserDetail: GetUserDetail(repository), seed: seed),
@@ -138,8 +130,6 @@ void main() {
     ) async {
       await pump(tester, size: _tablet);
 
-      // The window is 1200dp but the pane is 360dp. Measuring the window
-      // instead of the pane would wrongly produce a 3-column grid here.
       expect(find.byType(UserListTile), findsWidgets);
       expect(
         find.byKey(const PageStorageKey<String>('users_grid')),
@@ -165,7 +155,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(NoSelectionView), findsNothing);
-      // The whole point: the list survives the tap.
+
       expect(find.byType(UserListTile), findsWidgets);
       expect(find.text('Followers'), findsOneWidget);
     });
@@ -173,14 +163,6 @@ void main() {
     testWidgets('no two Heroes share a tag while both panes are mounted', (
       WidgetTester tester,
     ) async {
-      // The tile and the detail header both use `userAvatarHeroTag(id)`. In
-      // one pane only ever one of them is mounted; side by side both are.
-      //
-      // Flutter only ASSERTS on duplicate tags while collecting heroes for a
-      // route transition, so this cannot be caught by looking for a thrown
-      // exception here -- nothing is pushed. The invariant itself is what
-      // matters, because a later push from this screen would trip that
-      // assertion. So assert the invariant directly.
       await pump(tester, size: _tablet);
       await tester.tap(find.byKey(const Key('user_tile_1')));
       await tester.pumpAndSettle();
@@ -209,7 +191,6 @@ void main() {
       await tester.tap(find.byKey(const Key('user_tile_2')));
       await tester.pumpAndSettle();
 
-      // Keyed by detailId, so the old bloc is disposed and the pane rebinds.
       expect(find.text('defunkt'), findsWidgets);
       expect(tester.takeException(), isNull);
     });
@@ -241,7 +222,6 @@ void main() {
       await tester.tap(find.byKey(const Key('user_tile_1')));
       await tester.pumpAndSettle();
 
-      // Selection is state, not a route: nothing to pop.
       expect(nav.canPop(), isFalse);
     });
   });
