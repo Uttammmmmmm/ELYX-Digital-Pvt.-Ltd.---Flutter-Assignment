@@ -1,16 +1,17 @@
-/// Root widget: theme and the first route.
+/// Root widget: theme and routing.
 library;
 
 import 'package:flutter/material.dart';
 
+import 'core/routing/app_routes.dart';
+import 'core/routing/route_generator.dart';
 import 'core/theme/app_theme.dart';
-import 'features/users/presentation/pages/users_list_page.dart';
 
 /// The application shell.
 ///
-/// Holds no dependencies of its own and calls no `sl<T>()`. The service
-/// locator is touched at exactly one kind of place -- a `BlocProvider`'s
-/// `create` callback -- and nowhere else in the widget tree.
+/// Holds no dependencies and calls no `sl<T>()`. Routing goes through
+/// [RouteGenerator], which is also where an unknown route is turned into a
+/// 404 page instead of an exception.
 class ElyxApp extends StatelessWidget {
   const ElyxApp({super.key});
 
@@ -21,7 +22,10 @@ class ElyxApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-      home: const UsersListPage(),
+      initialRoute: AppRoutes.usersList,
+      onGenerateRoute: RouteGenerator.generate,
+      // Catches a pushNamed for a name the generator does not know at all.
+      onUnknownRoute: RouteGenerator.generate,
     );
   }
 }

@@ -118,11 +118,37 @@ infrastructure in `lib/core/`.
   infinite scroll and a refresh restarts from the beginning.
 - **The list endpoint has no name or email.** Hence two entities,
   `UserSummary` and `UserDetail`, rather than one with nullable fields.
-- **GitHub has no phone number at all.** No entity has a `phone` field; the
-  detail screen renders an explicit "Not provided by GitHub API" row, styled so
-  it cannot be mistaken for data.
+- **GitHub has no phone number at all.** See "A note on the phone field".
 - **Rate limiting.** A 403/429 with `x-ratelimit-remaining: 0` becomes its own
   failure type carrying the reset time; the UI shows a live countdown and
   disables Retry until the quota returns.
 - **No server-side search.** Filtering is client-side over loaded users, by
   login, using `contains()` rather than a regex so metacharacters are literals.
+
+## A note on the phone field
+
+The assignment asks the detail screen to show a phone number. **The GitHub
+REST API does not expose one.** This is not a nullable field that happens to be
+empty, and not an endpoint I overlooked — there is no phone concept anywhere in
+the user resource, at any scope, with or without authentication.
+
+I took this as a genuine conflict between the assignment spec and the API the
+assignment specifies, and resolved it by being explicit rather than by papering
+over it. The detail screen **always renders a Phone row**, styled as
+unavailable — muted, italic, non-interactive — reading *"Not provided by the
+GitHub API"*. It is never hidden, because hiding it would make the gap
+invisible and leave a reviewer unable to tell "the API has no phone number"
+from "the candidate forgot the phone number".
+
+Equally deliberately, the app does **not** generate a placeholder number, not
+even a deterministic one derived from the user id. A fabricated value that
+looks like a phone number is indistinguishable from real data to anyone reading
+the screen, and shipping invented data is a worse failure than showing an
+honest gap. To make that impossible rather than merely discouraged, there is no
+`phone` field on the `UserDetail` entity or on any model — the row has nothing
+to read from, by construction.
+
+The same reasoning governs `email`, which the API *does* have but leaves null
+for most accounts: it renders as *"Not publicly listed"* rather than blank.
+Both decisions are covered by widget tests asserting the copy and the
+unavailable styling, in `test/features/users/presentation/pages/user_detail_page_test.dart`.

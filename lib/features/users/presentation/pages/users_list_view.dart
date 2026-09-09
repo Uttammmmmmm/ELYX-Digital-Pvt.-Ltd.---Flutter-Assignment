@@ -6,6 +6,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/routing/app_routes.dart';
 import '../../domain/entities/user_summary.dart';
 import '../bloc/users_bloc.dart';
 import '../bloc/users_event.dart';
@@ -124,12 +125,12 @@ class _UsersListViewState extends State<UsersListView> {
         .firstWhere((UsersState s) => s.status != UsersStatus.refreshing);
   }
 
-  void _openDetail(UserSummary user) {
-    // TODO(step-8): push UserDetailPage(login: user.login).
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Detail screen for ${user.login} lands in step 8')),
-    );
-  }
+  /// Pushes the detail screen, handing over what the list already knows so
+  /// the next screen opens with a real header rather than a spinner.
+  void _openDetail(UserSummary user) => Navigator.of(context).pushNamed(
+        AppRoutes.userDetail,
+        arguments: user,
+      );
 
   void _retry() => context.read<UsersBloc>().add(const UsersFailedPageRetried());
 

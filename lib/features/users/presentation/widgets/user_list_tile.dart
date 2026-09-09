@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/entities/user_summary.dart';
 import 'loading_view.dart' show UserTileMetrics;
+import '../pages/user_detail_page.dart' show userAvatarHeroTag;
 import 'user_avatar.dart';
 
 /// Renders one [UserSummary].
@@ -38,7 +39,11 @@ class UserListTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: <Widget>[
-              UserAvatar(url: user.avatarUrl, login: user.login),
+              // Shared element with the detail screen.
+              Hero(
+                tag: userAvatarHeroTag(user.id),
+                child: UserAvatar(url: user.avatarUrl, login: user.login),
+              ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(

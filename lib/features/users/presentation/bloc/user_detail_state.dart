@@ -5,54 +5,84 @@ import 'package:equatable/equatable.dart';
 
 import '../../../../core/error/failures.dart';
 import '../../domain/entities/user_detail.dart';
+import '../../domain/entities/user_summary.dart';
 
-/// Detail-screen state.
+/// Lifecycle of the detail screen.
+enum UserDetailStatus {
+  /// Nothing requested yet.
+  initial,
+
+  /// A load is in flight. The SEED is still renderable.
+  loading,
+
+  /// The full profile is available.
+  success,
+
+  /// The load failed. The seed is still renderable.
+  failure,
+}
+
+/// A single state object for the detail screen.
 ///
-/// WHY SEALED HERE BUT FLAT FOR THE LIST: this screen shows one object with
-/// no incremental accumulation, so the states are genuinely mutually
-/// exclusive and there is no partial data to carry across a transition.
-/// Sealed subclasses make the UI's `switch` exhaustive.
-sealed class UserDetailState extends Equatable {
-  const UserDetailState();
+/// WHY A SEED: the list already knows the login, avatar and id, so the screen
+/// has real content to show the instant it opens. Carrying that through state
+/// means the header never renders blank or shimmering, and only the fields
+/// that genuinely require the network get a loading treatment. It also means
+/// a failure is not a dead end -- the user still sees who they tapped.
+///
+/// One class rather than a sealed union for the same reason the list uses
+/// one: `seed` is present in every status, so a union would repeat it in
+/// every variant.
+class UserDetailState extends Equatable {
+  const UserDetailState({
+    required this.seed,
+    this.status = UserDetailStatus.initial,
+    this.detail,
+    this.failure,
+  });
 
-  @override
-  List<Object?> get props => const <Object?>[];
-}
+  /// What the list already knew. Always present, never null.
+  final UserSummary seed;
 
-/// Nothing requested yet.
-final class UserDetailInitial extends UserDetailState {
-  const UserDetailInitial();
-}
+  /// Current lifecycle.
+  final UserDetailStatus status;
 
-/// A load is in flight.
-final class UserDetailLoading extends UserDetailState {
-  const UserDetailLoading();
-}
+  /// The fetched profile; null until [UserDetailStatus.success].
+  final UserDetail? detail;
 
-/// The profile is available.
-final class UserDetailLoaded extends UserDetailState {
-  const UserDetailLoaded(this.detail);
+  /// Why the load failed; non-null only alongside [UserDetailStatus.failure].
+  final Failure? failure;
 
-  /// The profile.
-  final UserDetail detail;
+  /// The login, always available even before the profile loads.
+  String get login => seed.login;
 
-  @override
-  List<Object?> get props => <Object?>[detail];
-}
-
-/// The load failed and there is nothing to show.
-final class UserDetailError extends UserDetailState {
-  const UserDetailError(this.failure);
-
-  /// What went wrong. `RateLimitFailure` carries the reset time.
-  final Failure failure;
+  /// True while the body should show a skeleton.
+  bool get isLoadingBody =>
+      status == UserDetailStatus.initial || status == UserDetailStatus.loading;
 
   /// The rate-limit failure, when that is what went wrong. Constraint (d).
   RateLimitFailure? get rateLimitFailure {
-    final Failure f = failure;
+    final Failure? f = failure;
     return f is RateLimitFailure ? f : null;
   }
 
+  /// Copy helper. [detail] and [failure] need explicit clearing.
+  UserDetailState copyWith({
+    UserSummary? seed,
+    UserDetailStatus? status,
+    UserDetail? detail,
+    bool clearDetail = false,
+    Failure? failure,
+    bool clearFailure = false,
+  }) {
+    return UserDetailState(
+      seed: seed ?? this.seed,
+      status: status ?? this.status,
+      detail: clearDetail ? null : (detail ?? this.detail),
+      failure: clearFailure ? null : (failure ?? this.failure),
+    );
+  }
+
   @override
-  List<Object?> get props => <Object?>[failure];
+  List<Object?> get props => <Object?>[seed, status, detail, failure];
 }

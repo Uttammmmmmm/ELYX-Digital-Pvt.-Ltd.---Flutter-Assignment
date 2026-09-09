@@ -2,183 +2,260 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/error/failures.dart';
-import '../../../../core/widgets/app_loader.dart';
 import '../../domain/entities/user_detail.dart';
+import '../../domain/entities/user_summary.dart';
 import '../bloc/user_detail_bloc.dart';
 import '../bloc/user_detail_event.dart';
 import '../bloc/user_detail_state.dart';
-import '../formatters/user_display.dart';
+import '../widgets/detail_body_skeleton.dart';
+import '../widgets/detail_info_row.dart';
+import '../widgets/detail_stat_row.dart';
 import '../widgets/error_view.dart';
 import '../widgets/rate_limit_view.dart';
 import '../widgets/user_avatar.dart';
-import '../widgets/detail_field_tile.dart';
-import '../widgets/detail_stat_row.dart';
 
-/// Route-level wrapper that supplies the [UserDetailBloc].
+/// Hero tag for a user's avatar, shared by the list tile and this screen.
+String userAvatarHeroTag(int id) => 'user_avatar_$id';
+
+/// Route-level wrapper.
+///
+/// Takes the [UserSummary] the list already had, so the screen opens with a
+/// real avatar and login instead of a spinner. The ONLY `sl<T>()` call on
+/// this screen.
 class UserDetailPage extends StatelessWidget {
-  const UserDetailPage({required this.login, super.key});
+  const UserDetailPage({required this.summary, super.key});
 
-  /// The handle to load.
-  final String login;
+  /// What the list already knew about this user.
+  final UserSummary summary;
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider<UserDetailBloc>(
-      create: (_) => sl<UserDetailBloc>()..add(UserDetailRequested(login)),
-      child: UserDetailView(login: login),
+      // BlocProvider owns the bloc it creates and calls close() in its own
+      // dispose(), which runs when this route is popped. Combined with the
+      // isClosed guard in the bloc, an in-flight request that lands after the
+      // pop is discarded instead of emitting into a closed controller.
+      create: (_) => sl<UserDetailBloc>(param1: summary)
+        ..add(UserDetailRequested(summary.login)),
+      child: const UserDetailView(),
     );
   }
 }
 
 /// The profile itself. Expects a [UserDetailBloc] above it.
 class UserDetailView extends StatelessWidget {
-  const UserDetailView({required this.login, super.key});
-
-  /// The handle being shown; used for the title and retry events.
-  final String login;
+  const UserDetailView({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(login)),
-      body: BlocBuilder<UserDetailBloc, UserDetailState>(
-        builder: (BuildContext context, UserDetailState state) {
-          // Sealed state -> exhaustive switch; a new state cannot be forgotten.
-          return switch (state) {
-            UserDetailInitial() || UserDetailLoading() => const AppLoader(),
-            UserDetailError(:final Failure failure) => switch (failure) {
-                // Rate limiting gets the countdown view with its disabled
-                // retry; everything else gets the generic error.
-                RateLimitFailure(:final DateTime resetAt) => RateLimitView(
-                    resetAt: resetAt,
-                    onRetry: () => context
-                        .read<UserDetailBloc>()
-                        .add(UserDetailRequested(login)),
-                  ),
-                _ => ErrorView(
-                    failure: failure,
-                    onRetry: () => context
-                        .read<UserDetailBloc>()
-                        .add(UserDetailRequested(login)),
-                  ),
-              },
-            UserDetailLoaded(:final UserDetail detail) => _Profile(detail),
-          };
-        },
-      ),
+    return BlocBuilder<UserDetailBloc, UserDetailState>(
+      builder: (BuildContext context, UserDetailState state) {
+        return Scaffold(
+          appBar: AppBar(title: Text(state.login)),
+          body: ListView(
+            children: <Widget>[
+              // Rendered from the SEED, so it is on screen immediately and
+              // stays put through loading, success and failure alike.
+              _Header(state: state),
+              const SizedBox(height: 16),
+              const Divider(height: 1),
+              _Body(state: state),
+              const SizedBox(height: 32),
+            ],
+          ),
+        );
+      },
     );
   }
 }
 
-class _Profile extends StatelessWidget {
-  const _Profile(this.detail);
+class _Header extends StatelessWidget {
+  const _Header({required this.state});
 
-  final UserDetail detail;
+  final UserDetailState state;
 
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final UserDetail? detail = state.detail;
 
-    // No pull-to-refresh here: `UserRepository.getUserDetail` takes no
-    // force-refresh flag, so a re-request inside the 24h TTL would be
-    // answered from cache and the gesture would silently do nothing. An
-    // affordance that does nothing is worse than none.
-    return ListView(
+    // Name falls back to the login, so this line is never blank -- not while
+    // loading, not on failure, not when GitHub has no name for the user.
+    final String displayName = detail?.displayName ?? state.seed.login;
+
+    return Column(
       children: <Widget>[
         const SizedBox(height: 24),
         Center(
-          child: UserAvatar(
-            url: detail.avatarUrl,
-            login: detail.login,
-            radius: 48,
+          // Shared element with the list tile. The tag is keyed by id, which
+          // is unique and stable; keying by login would break if two routes
+          // ever showed the same user.
+          child: Hero(
+            tag: userAvatarHeroTag(state.seed.id),
+            child: UserAvatar(
+              url: state.seed.avatarUrl,
+              login: state.seed.login,
+              radius: 48,
+            ),
           ),
         ),
         const SizedBox(height: 16),
-
-        // displayName falls back to the login, so this is never empty.
-        Center(
-          child: Text(
-            detail.displayName,
-            key: const Key('detail_name'),
-            style: theme.textTheme.headlineSmall,
-            textAlign: TextAlign.center,
-          ),
+        Text(
+          displayName,
+          key: const Key('detail_name'),
+          style: theme.textTheme.headlineSmall,
+          textAlign: TextAlign.center,
         ),
-        // Skipped when the name already IS the login -- no point repeating it.
-        if (!UserDisplay.namesAreSame(detail))
-          Center(
-            child: Text(
-              UserDisplay.handle(detail.login),
-              key: const Key('detail_handle'),
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
+        // Suppressed when the name IS the login -- no point printing it twice.
+        if (displayName != state.seed.login)
+          Text(
+            '@${state.seed.login}',
+            key: const Key('detail_handle'),
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
-
-        if (detail.bio != null) ...<Widget>[
+        if (detail?.bio != null) ...<Widget>[
           const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Text(
-              detail.bio!,
+              detail!.bio!,
+              key: const Key('detail_bio'),
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium,
             ),
           ),
         ],
+      ],
+    );
+  }
+}
 
-        const SizedBox(height: 24),
-        DetailStatRow(detail: detail),
+class _Body extends StatelessWidget {
+  const _Body({required this.state});
+
+  final UserDetailState state;
+
+  void _copy(BuildContext context, String label, String value) {
+    Clipboard.setData(ClipboardData(text: value));
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text('$label copied')));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (state.isLoadingBody) return const DetailBodySkeleton();
+
+    final UserDetail? detail = state.detail;
+
+    if (detail == null) {
+      final Failure? failure = state.failure;
+      if (failure == null) return const SizedBox.shrink();
+
+      final RateLimitFailure? rateLimited = state.rateLimitFailure;
+      return SizedBox(
+        height: 360,
+        child: rateLimited != null
+            ? RateLimitView(
+                resetAt: rateLimited.resetAt,
+                onRetry: () =>
+                    context.read<UserDetailBloc>().add(const UserDetailRetried()),
+              )
+            : ErrorView(
+                failure: failure,
+                onRetry: () =>
+                    context.read<UserDetailBloc>().add(const UserDetailRetried()),
+              ),
+      );
+    }
+
+    return Column(
+      children: <Widget>[
         const SizedBox(height: 16),
+        DetailStatRow(detail: detail),
+        const SizedBox(height: 8),
         const Divider(height: 1),
 
-        DetailFieldTile(
+        // --- The three the assignment requires: always rendered -----------
+        DetailInfoRow(
+          key: const Key('row_name'),
+          icon: Icons.badge_outlined,
+          label: 'Name',
+          value: detail.displayName,
+        ),
+        DetailInfoRow(
+          key: const Key('row_email'),
           icon: Icons.alternate_email,
           label: 'Email',
-          value: UserDisplay.email(detail),
-          isUnavailable: !detail.hasEmail,
+          value: detail.email ?? 'Not publicly listed',
+          unavailable: !detail.hasEmail,
+          onTap: detail.hasEmail
+              ? () => _copy(context, 'Email', detail.email!)
+              : null,
         ),
-
-        // Constraint (c): GitHub has no phone field at all. This value is NOT
-        // read from the entity -- there is no `phone` property to read, by
-        // design. It is a static row, styled as unavailable, because
-        // inventing a plausible number would be fabricating data.
-        const DetailFieldTile(
-          key: Key('detail_phone'),
+        // PHONE: permanently unavailable, and that is CORRECT, not a stub.
+        //
+        // The assignment asks for a phone number. The GitHub REST API exposes
+        // none -- not null, not optional: there is no phone concept anywhere
+        // in the user resource. This is a documented gap between the
+        // assignment spec and the API it was pointed at, so the screen states
+        // it plainly instead of hiding the row or, far worse, generating a
+        // plausible-looking fake number. A fabricated value would be
+        // indistinguishable from real data to anyone reading the screen.
+        // There is deliberately no `phone` field on UserDetail to read from.
+        const DetailInfoRow(
+          key: Key('row_phone'),
           icon: Icons.phone_outlined,
           label: 'Phone',
-          value: UserDisplay.phoneUnavailable,
-          isUnavailable: true,
+          value: 'Not provided by the GitHub API',
+          unavailable: true,
         ),
 
-        DetailFieldTile(
-          icon: Icons.place_outlined,
-          label: 'Location',
-          value: UserDisplay.orUnavailable(detail.location),
-          isUnavailable: detail.location == null,
+        const Divider(height: 1),
+
+        // --- Optional: hidden entirely when null --------------------------
+        if (detail.company != null)
+          DetailInfoRow(
+            key: const Key('row_company'),
+            icon: Icons.business_outlined,
+            label: 'Company',
+            value: detail.company!,
+          ),
+        if (detail.location != null)
+          DetailInfoRow(
+            key: const Key('row_location'),
+            icon: Icons.place_outlined,
+            label: 'Location',
+            value: detail.location!,
+          ),
+        if (detail.blog != null)
+          DetailInfoRow(
+            key: const Key('row_blog'),
+            icon: Icons.link,
+            label: 'Website',
+            value: detail.blog!,
+            onTap: () => _copy(context, 'Website', detail.blog!),
+          ),
+        DetailInfoRow(
+          key: const Key('row_member_since'),
+          icon: Icons.calendar_today_outlined,
+          label: 'Member since',
+          value: DateFormat.yMMMM().format(detail.createdAt),
         ),
-        DetailFieldTile(
-          icon: Icons.business_outlined,
-          label: 'Company',
-          value: UserDisplay.orUnavailable(detail.company),
-          isUnavailable: detail.company == null,
-        ),
-        DetailFieldTile(
-          icon: Icons.link,
-          label: 'Website',
-          value: UserDisplay.orUnavailable(detail.blog),
-          isUnavailable: detail.blog == null,
-        ),
-        DetailFieldTile(
-          icon: Icons.code,
+        DetailInfoRow(
+          key: const Key('row_profile'),
+          icon: Icons.open_in_new,
           label: 'Profile',
           value: detail.htmlUrl,
+          onTap: () => _copy(context, 'Profile URL', detail.htmlUrl),
         ),
-        const SizedBox(height: 32),
       ],
     );
   }

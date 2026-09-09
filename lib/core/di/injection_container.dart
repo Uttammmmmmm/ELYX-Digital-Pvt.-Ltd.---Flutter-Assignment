@@ -7,6 +7,7 @@ import 'package:get_it/get_it.dart';
 import '../../features/users/data/datasources/user_local_data_source.dart';
 import '../../features/users/data/datasources/user_remote_data_source.dart';
 import '../../features/users/data/repositories/user_repository_impl.dart';
+import '../../features/users/domain/entities/user_summary.dart';
 import '../../features/users/domain/repositories/user_repository.dart';
 import '../../features/users/domain/usecases/filter_users.dart';
 import '../../features/users/domain/usecases/get_user_detail.dart';
@@ -139,8 +140,14 @@ Future<void> init({required HiveBoxes boxes}) async {
         filterUsers: sl<FilterUsers>(),
       ),
     )
-    ..registerFactory<UserDetailBloc>(
-      () => UserDetailBloc(getUserDetail: sl<GetUserDetail>()),
+    // registerFactoryParam because the detail bloc needs the UserSummary the
+    // list already had. Passing it at resolution time keeps the seed out of
+    // global state -- two detail screens open at once each get their own.
+    ..registerFactoryParam<UserDetailBloc, UserSummary, void>(
+      (UserSummary seed, _) => UserDetailBloc(
+        getUserDetail: sl<GetUserDetail>(),
+        seed: seed,
+      ),
     );
 }
 

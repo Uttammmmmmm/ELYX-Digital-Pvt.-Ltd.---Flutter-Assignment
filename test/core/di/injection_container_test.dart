@@ -21,6 +21,7 @@ import 'package:elyx_digital_assignment/features/users/domain/usecases/filter_us
 import 'package:elyx_digital_assignment/features/users/domain/usecases/get_user_detail.dart';
 import 'package:elyx_digital_assignment/features/users/domain/usecases/get_users.dart';
 import 'package:elyx_digital_assignment/features/users/presentation/bloc/user_detail_bloc.dart';
+import 'package:elyx_digital_assignment/features/users/presentation/bloc/user_detail_state.dart';
 import 'package:elyx_digital_assignment/features/users/presentation/bloc/users_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce/hive.dart';
@@ -106,10 +107,24 @@ void main() {
       b.close();
     });
 
-    test('a detail bloc is also a factory and starts idle', () {
-      final UserDetailBloc bloc = sl<UserDetailBloc>();
-      expect(bloc.state.runtimeType.toString(), 'UserDetailInitial');
-      expect(sl<UserDetailBloc>(), isNot(same(bloc)));
+    test('a detail bloc is a param factory seeded with its UserSummary', () {
+      const UserSummary seed = UserSummary(
+        id: 1,
+        login: 'mojombo',
+        avatarUrl: 'a',
+        htmlUrl: 'h',
+        type: 'User',
+        siteAdmin: false,
+      );
+
+      final UserDetailBloc bloc = sl<UserDetailBloc>(param1: seed);
+
+      // The seed is present before any request, so the screen opens populated.
+      expect(bloc.state.seed, seed);
+      expect(bloc.state.status, UserDetailStatus.initial);
+      // Still a factory: two open detail screens must not share one bloc.
+      expect(sl<UserDetailBloc>(param1: seed), isNot(same(bloc)));
+
       bloc.close();
     });
   });

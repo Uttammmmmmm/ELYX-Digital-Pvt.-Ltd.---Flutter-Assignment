@@ -64,6 +64,9 @@ dependencies:
   # Avatar loading + disk cache
   cached_network_image: 3.4.1
 
+  # Date formatting on the detail screen (member-since).
+  intl: 0.20.3
+
   cupertino_icons: 1.0.8
 
 dev_dependencies:
