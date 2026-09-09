@@ -4,6 +4,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_spacing.dart';
+import 'adaptive_centered_view.dart';
 
 /// Shown when the query is non-empty and `visibleUsers` is empty.
 ///
@@ -37,11 +38,9 @@ class NoSearchResultsView extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
 
-    return Center(
+    return AdaptiveCenteredView(
       key: const Key('no_search_results_view'),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
+      child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Icon(Icons.search_off, size: AppSizes.iconXl, color: theme.colorScheme.outline),
@@ -75,7 +74,6 @@ class NoSearchResultsView extends StatelessWidget {
               ],
             ),
           ],
-        ),
       ),
     );
   }

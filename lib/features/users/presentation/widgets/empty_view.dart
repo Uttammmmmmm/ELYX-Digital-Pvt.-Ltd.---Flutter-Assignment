@@ -4,6 +4,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_spacing.dart';
+import 'adaptive_centered_view.dart';
 
 /// Shown when GitHub returned zero users and no search is active.
 ///
@@ -21,11 +22,9 @@ class EmptyView extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
 
-    return Center(
+    return AdaptiveCenteredView(
       key: const Key('empty_view'),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
+      child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Icon(Icons.people_outline, size: AppSizes.iconXl, color: theme.colorScheme.outline),
@@ -47,7 +46,6 @@ class EmptyView extends StatelessWidget {
               ),
             ],
           ],
-        ),
       ),
     );
   }

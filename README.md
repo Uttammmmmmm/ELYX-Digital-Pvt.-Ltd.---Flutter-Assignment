@@ -351,29 +351,27 @@ execute; **Hive tests against real boxes** in a temp directory.
 
 Stated plainly, in rough order of how much they would matter to a reviewer.
 
-1. **Never run against the live GitHub API.** Every test fakes the socket or
-   mocks the repository. Logic is well covered, but plugin registration
-   (`connectivity_plus`, `path_provider`) only exists on a real device, and the
-   real API's exact response shapes are unverified.
-2. **`X-GitHub-Api-Version: 2026-03-10` is unverified.** An unrecognised value
-   returns 400. It is isolated in `ApiConstants` — a one-line fix if wrong.
-3. **No master-detail split view on tablets.** The grid uses the extra width,
+1. **Limited real-device testing.** The app has been run against the live
+   GitHub API — the list, detail requests and rate-limit handling all work
+   against real responses — but only briefly, on one device. Long sessions,
+   iOS, and tablets are unverified.
+2. **No master-detail split view on tablets.** The grid uses the extra width,
    but there is no two-pane layout. Split-view navigation interacts with the
    back button and deep links in ways widget tests at a fixed surface size will
    not catch, so it was left out rather than shipped unverified.
-4. **`hive_generator` is unusable on this SDK** (it pins `analyzer <7.0.0`,
+3. **`hive_generator` is unusable on this SDK** (it pins `analyzer <7.0.0`,
    which cannot coexist with `bloc_test`), so the project uses **`hive_ce`** —
    the maintained fork, same API and same `@HiveType` annotations.
-5. **Search matches `login` only**, not display names. Names live behind
+4. **Search matches `login` only**, not display names. Names live behind
    per-user detail requests, and prefetching them would exhaust the hourly
    budget. Searching names for the arbitrary subset whose profile happened to
    be cached would produce results users cannot predict.
-6. **Blog and profile links copy to the clipboard** rather than opening a
+5. **Blog and profile links copy to the clipboard** rather than opening a
    browser. `url_launcher` needs an Android `<queries>` manifest entry to work
    on API 30+, which cannot be verified without a device.
-7. **No localisation.** Copy is hardcoded English; `formatClockTime` does not
+6. **No localisation.** Copy is hardcoded English; `formatClockTime` does not
    respect a 24-hour locale preference.
-8. **The launcher icon is a generated placeholder**, not a designed mark.
-9. **Widget tests never close their blocs.** `Bloc.close()` never completes
+7. **The launcher icon is a generated placeholder**, not a designed mark.
+8. **Widget tests never close their blocs.** `Bloc.close()` never completes
    inside `testWidgets` (its clock is faked); it completes normally in plain
    `test()` and `bloc_test`. Documented at the top of each affected file.

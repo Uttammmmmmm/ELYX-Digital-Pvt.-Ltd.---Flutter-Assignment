@@ -4,6 +4,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_spacing.dart';
+import 'adaptive_centered_view.dart';
 
 import '../../../../core/error/failures.dart';
 
@@ -28,11 +29,9 @@ class ErrorView extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
 
-    return Center(
+    return AdaptiveCenteredView(
       key: const Key('error_view'),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
+      child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Icon(
@@ -61,7 +60,6 @@ class ErrorView extends StatelessWidget {
               label: const Text('Try again'),
             ),
           ],
-        ),
       ),
     );
   }

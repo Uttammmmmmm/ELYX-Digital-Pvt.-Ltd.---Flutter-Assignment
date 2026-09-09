@@ -159,21 +159,17 @@ class _Body extends StatelessWidget {
       final Failure? failure = state.failure;
       if (failure == null) return const SizedBox.shrink();
 
+      // No fixed height. A hardcoded box (this was 360dp) overflows the
+      // moment the content needs more -- larger system font, a longer failure
+      // message, a shorter screen. The state widgets size themselves and
+      // scroll when the space is short, so the height is theirs to decide.
       final RateLimitFailure? rateLimited = state.rateLimitFailure;
-      return SizedBox(
-        height: 360,
-        child: rateLimited != null
-            ? RateLimitView(
-                resetAt: rateLimited.resetAt,
-                onRetry: () =>
-                    context.read<UserDetailBloc>().add(const UserDetailRetried()),
-              )
-            : ErrorView(
-                failure: failure,
-                onRetry: () =>
-                    context.read<UserDetailBloc>().add(const UserDetailRetried()),
-              ),
-      );
+      void onRetry() =>
+          context.read<UserDetailBloc>().add(const UserDetailRetried());
+
+      return rateLimited != null
+          ? RateLimitView(resetAt: rateLimited.resetAt, onRetry: onRetry)
+          : ErrorView(failure: failure, onRetry: onRetry);
     }
 
     return Column(

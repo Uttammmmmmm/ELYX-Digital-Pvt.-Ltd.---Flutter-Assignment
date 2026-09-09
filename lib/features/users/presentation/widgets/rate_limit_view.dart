@@ -6,6 +6,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_spacing.dart';
+import 'adaptive_centered_view.dart';
 
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/utils/duration_format.dart';
@@ -74,11 +75,9 @@ class _RateLimitViewState extends State<RateLimitView> {
     final ThemeData theme = Theme.of(context);
     final bool canRetry = _remaining == Duration.zero;
 
-    return Center(
+    return AdaptiveCenteredView(
       key: const Key('rate_limit_view'),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
+      child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Icon(Icons.hourglass_top, size: AppSizes.iconXl, color: theme.colorScheme.error),
@@ -124,7 +123,6 @@ class _RateLimitViewState extends State<RateLimitView> {
               ),
             ],
           ],
-        ),
       ),
     );
   }
