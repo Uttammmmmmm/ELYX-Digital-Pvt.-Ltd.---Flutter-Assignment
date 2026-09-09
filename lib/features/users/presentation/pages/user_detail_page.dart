@@ -1,4 +1,3 @@
-/// The user profile screen.
 library;
 
 import 'package:flutter/material.dart';
@@ -22,26 +21,16 @@ import '../widgets/error_view.dart';
 import '../widgets/rate_limit_view.dart';
 import '../widgets/user_avatar.dart';
 
-/// Hero tag for a user's avatar, shared by the list tile and this screen.
 String userAvatarHeroTag(int id) => 'user_avatar_$id';
 
-/// Route-level wrapper.
-///
-/// Takes the [UserSummary] the list already had, so the screen opens with a
-/// real avatar and name instead of a spinner. The ONLY `sl<T>()` call here.
 class UserDetailPage extends StatelessWidget {
   const UserDetailPage({required this.summary, super.key});
 
-  /// What the list already knew about this user.
   final UserSummary summary;
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider<UserDetailBloc>(
-      // BlocProvider owns the bloc it creates and closes it in its own
-      // dispose(), which runs when this route is popped. Combined with the
-      // isClosed guard in the bloc, an in-flight request that lands after the
-      // pop is discarded instead of emitting into a closed controller.
       create: (_) =>
           sl<UserDetailBloc>(param1: summary)
             ..add(UserDetailRequested(summary.detailId)),
@@ -50,7 +39,6 @@ class UserDetailPage extends StatelessWidget {
   }
 }
 
-/// The profile itself. Expects a [UserDetailBloc] above it.
 class UserDetailView extends StatelessWidget {
   const UserDetailView({super.key});
 
@@ -62,8 +50,6 @@ class UserDetailView extends StatelessWidget {
           appBar: AppBar(title: Text(state.displayName)),
           body: ListView(
             children: <Widget>[
-              // Rendered from the SEED, so it is on screen immediately and
-              // stays put through loading, success and failure alike.
               _Header(state: state),
               const SizedBox(height: AppSpacing.md),
               const Divider(height: 1),
@@ -87,9 +73,6 @@ class _Header extends StatelessWidget {
     final ThemeData theme = Theme.of(context);
     final UserDetail? detail = state.detail;
 
-    // Never blank -- displayName falls back through name, then handle, then
-    // id -- and available from the seed, so it is on screen before the
-    // request returns and survives a failure.
     final String displayName = state.displayName;
     final String? handle = detail?.handle ?? state.seed.handle;
 
@@ -97,8 +80,6 @@ class _Header extends StatelessWidget {
       children: <Widget>[
         const SizedBox(height: AppSpacing.lg),
         Center(
-          // Shared element with the list tile. Keyed by id, which is unique
-          // and stable across both sources.
           child: Hero(
             tag: userAvatarHeroTag(state.seed.id),
             child: UserAvatar(
@@ -117,8 +98,6 @@ class _Header extends StatelessWidget {
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
-        // Suppressed when the handle IS the display name, and absent entirely
-        // on sources that have no handle.
         if (handle != null && handle != displayName)
           Text(
             '@$handle',
@@ -168,8 +147,6 @@ class _Body extends StatelessWidget {
       final Failure? failure = state.failure;
       if (failure == null) return const SizedBox.shrink();
 
-      // No fixed height: the state widgets size themselves and scroll when
-      // the space is short.
       void onRetry() =>
           context.read<UserDetailBloc>().add(const UserDetailRetried());
 
@@ -181,8 +158,6 @@ class _Body extends StatelessWidget {
 
     return Column(
       children: <Widget>[
-        // Hidden entirely on a source with no counters, rather than rendered
-        // as three zeros -- which would be fabricated data.
         if (detail.hasStats) ...<Widget>[
           const SizedBox(height: AppSpacing.md),
           DetailStatRow(detail: detail),
@@ -190,7 +165,6 @@ class _Body extends StatelessWidget {
           const Divider(height: 1),
         ],
 
-        // --- The three the assignment requires: ALWAYS rendered -----------
         DetailInfoRow(
           key: const Key('row_name'),
           icon: Icons.badge_outlined,
@@ -207,13 +181,6 @@ class _Body extends StatelessWidget {
               ? () => _copy(context, UsersStrings.labelEmail, detail.email!)
               : null,
         ),
-        // PHONE: permanently unavailable, and that is CORRECT, not a stub.
-        // NEITHER supported API exposes a phone number -- reqres returns id,
-        // email, first_name, last_name and avatar; GitHub has no phone
-        // concept at any scope. This is a documented gap between the
-        // assignment and the APIs it names, stated plainly rather than
-        // hidden, and never fabricated. There is no `phone` field on any
-        // entity to read from, by construction.
         const DetailInfoRow(
           key: Key('row_phone'),
           icon: Icons.phone_outlined,
@@ -224,7 +191,6 @@ class _Body extends StatelessWidget {
 
         const Divider(height: 1),
 
-        // --- Optional: hidden entirely when the source has no value -------
         if (detail.company != null)
           DetailInfoRow(
             key: const Key('row_company'),

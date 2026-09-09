@@ -1,5 +1,3 @@
-/// A scripted [HttpClientAdapter] so the whole network stack can be tested
-/// without a socket.
 library;
 
 import 'dart:convert';
@@ -7,7 +5,6 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
-/// One canned HTTP reply.
 class FakeReply {
   const FakeReply({
     required this.statusCode,
@@ -20,17 +17,11 @@ class FakeReply {
   final Map<String, List<String>> headers;
 }
 
-/// Returns a scripted [FakeReply] and records the request that asked for it.
-///
-/// Preferred over mocking `DioClient`: this exercises the real interceptor
-/// chain, the real error mapper and the real Link parser, so the wiring
-/// between them is covered rather than assumed.
 class FakeHttpAdapter implements HttpClientAdapter {
   FakeHttpAdapter(this._reply);
 
   final FakeReply Function(RequestOptions options) _reply;
 
-  /// Every request that reached the adapter, in order.
   final List<RequestOptions> requests = <RequestOptions>[];
 
   @override

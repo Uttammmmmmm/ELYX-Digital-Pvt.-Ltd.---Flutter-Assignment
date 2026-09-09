@@ -8,6 +8,7 @@ import 'package:elyx_digital_assignment/core/network/dio_client.dart';
 import 'package:elyx_digital_assignment/core/network/network_info.dart';
 import 'package:elyx_digital_assignment/core/network/rate_limit_tracker.dart';
 import 'package:elyx_digital_assignment/core/storage/hive_initializer.dart';
+import 'package:elyx_digital_assignment/features/users/data/datasources/api/github_users_api.dart';
 import 'package:elyx_digital_assignment/features/users/data/datasources/api/reqres_users_api.dart';
 import 'package:elyx_digital_assignment/features/users/data/datasources/api/users_api.dart';
 import 'package:elyx_digital_assignment/features/users/data/datasources/user_local_data_source.dart';
@@ -29,8 +30,6 @@ import 'package:mockito/mockito.dart';
 import '../../helpers/entity_fixtures.dart';
 import '../../helpers/mocks.mocks.dart';
 
-/// A DI graph only fails at runtime, on the screen that needs it. Resolving
-/// every registration once in CI turns that into a build failure instead.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -39,8 +38,6 @@ void main() {
 
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp('di_test');
-    // HiveInitializer.init() cannot run here: initFlutter() needs
-    // path_provider, which has no implementation under flutter_test.
     Hive.init(tempDir.path);
     HiveInitializer.registerAdaptersOnce();
     boxes = HiveBoxes(
@@ -72,27 +69,31 @@ void main() {
       expect(sl<FilterUsers>(), isNotNull);
     });
 
-    test('reqres is the default source -- the brief names it in prose', () {
-      expect(kApiSource, 'reqres');
-      expect(sl<UsersApi>(), isA<ReqresUsersApi>());
-      expect(sl<UsersApi>().baseUrl, 'https://reqres.in/api');
+    test('github is the default source', () {
+      expect(kApiSource, 'github');
+      expect(sl<UsersApi>(), isA<GitHubUsersApi>());
+      expect(sl<UsersApi>().baseUrl, 'https://api.github.com');
       expect(
-        sl<UsersApi>().headers['x-api-key'],
+        sl<UsersApi>().headers['User-Agent'],
         isNotEmpty,
-        reason: 'reqres 401s without it',
+        reason: 'GitHub 403s without a User-Agent',
       );
     });
 
     test('the Dio client takes its host and headers from the source', () {
-      // Not hardcoded: switching API_SOURCE must repoint the client too.
       expect(sl<DioClient>(), isNotNull);
-      expect(sl<UsersApi>().baseUrl, contains('reqres.in'));
+      expect(sl<UsersApi>().baseUrl, contains('api.github.com'));
     });
 
     test('registered against the ABSTRACT types only', () {
       expect(sl<UserRepository>(), isNotNull);
       expect(
         sl.isRegistered<ReqresUsersApi>(),
+        isFalse,
+        reason: 'consumers must not reach for an implementation',
+      );
+      expect(
+        sl.isRegistered<GitHubUsersApi>(),
         isFalse,
         reason: 'consumers must not reach for an implementation',
       );
@@ -167,15 +168,10 @@ void main() {
       final MockNetworkInfo mockNetwork = MockNetworkInfo();
       when(mockNetwork.isConnected).thenAnswer((_) async => true);
 
-      // 1. Permit re-registration of an already-registered type.
       sl.allowReassignment = true;
-      // 2. Swap the implementations behind the ABSTRACT types.
       sl
         ..registerLazySingleton<UsersApi>(() => mockApi)
         ..registerLazySingleton<NetworkInfo>(() => mockNetwork);
-      // 3. Drop the repository's cached instance so it rebuilds against the
-      //    mocks. Without this it keeps the real collaborators it captured on
-      //    first resolution -- the step that is easy to forget.
       sl.resetLazySingleton<UserRepository>();
 
       final Either<Failure, PaginatedUsers> result = await sl<UserRepository>()

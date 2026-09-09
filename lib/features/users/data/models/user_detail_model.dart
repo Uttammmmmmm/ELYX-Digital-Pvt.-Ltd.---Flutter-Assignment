@@ -1,4 +1,3 @@
-/// Hive representation of [UserDetail].
 library;
 
 import 'package:hive_ce/hive.dart';
@@ -10,7 +9,6 @@ import 'user_summary_model.dart';
 
 part 'user_detail_model.g.dart';
 
-/// [UserDetail] plus Hive persistence and a cache stamp.
 @HiveType(typeId: HiveTypeIds.userDetail)
 class UserDetailModel extends UserDetail {
   const UserDetailModel({
@@ -26,7 +24,6 @@ class UserDetailModel extends UserDetail {
     this.cachedAt,
   });
 
-  /// Narrows an entity for caching.
   factory UserDetailModel.fromEntity(UserDetail detail, {DateTime? cachedAt}) =>
       UserDetailModel(
         user: UserSummaryModel.fromEntity(detail.user),
@@ -41,11 +38,6 @@ class UserDetailModel extends UserDetail {
         cachedAt: cachedAt,
       );
 
-  /// When this profile was written to the cache; null before it is stored.
-  ///
-  /// A data-layer-only field with no domain counterpart -- freshness is a
-  /// caching concern, not a fact about the user. It lives here rather than in
-  /// a parallel timestamp box so a profile and its age cannot get out of sync.
   @HiveField(9)
   final DateTime? cachedAt;
 
@@ -85,17 +77,12 @@ class UserDetailModel extends UserDetail {
   @override
   DateTime? get createdAt => super.createdAt;
 
-  /// True once this profile is older than [ttl].
-  ///
-  /// Unstamped records read as stale, so a pre-`cachedAt` entry is refetched
-  /// rather than trusted forever.
   bool isStale(Duration ttl, {DateTime? now}) {
     final DateTime? at = cachedAt;
     if (at == null) return true;
     return (now ?? DateTime.now()).difference(at) > ttl;
   }
 
-  /// Returns a copy stamped with the current time, for writing to the cache.
   UserDetailModel withCacheStamp({DateTime? now}) =>
       UserDetailModel.fromEntity(this, cachedAt: now ?? DateTime.now());
 }

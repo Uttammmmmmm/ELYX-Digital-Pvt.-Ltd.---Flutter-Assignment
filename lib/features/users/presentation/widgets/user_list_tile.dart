@@ -1,4 +1,3 @@
-/// A single row in the users list.
 library;
 
 import 'package:flutter/material.dart';
@@ -9,24 +8,16 @@ import '../pages/user_detail_page.dart' show userAvatarHeroTag;
 import 'user_avatar.dart';
 import 'user_tile_metrics.dart';
 
-/// Renders one [UserSummary] as a list row.
-///
-/// Shows only what the LIST endpoint returns -- login, avatar, id, type. No
-/// name and no email, because constraint (b) means we do not have them and
-/// fetching them would cost one request per row against a 60/hour budget.
 class UserListTile extends StatelessWidget {
   const UserListTile({required this.user, required this.onTap, super.key});
 
-  /// The user to render.
   final UserSummary user;
 
-  /// Navigation callback.
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    // Only some sources label account types; absent means an ordinary user.
     final String? type = user.accountType;
     final bool isOrganisation = type != null && type != 'User';
 
@@ -38,7 +29,6 @@ class UserListTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
           child: Row(
             children: <Widget>[
-              // Shared element with the detail screen.
               Hero(
                 tag: userAvatarHeroTag(user.id),
                 child: UserAvatar(
@@ -53,7 +43,6 @@ class UserListTile extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    // Names and logins both run long; ellipsize, never overflow.
                     Text(
                       user.displayName,
                       maxLines: 1,
@@ -62,8 +51,6 @@ class UserListTile extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xs / 2),
                     Text(
-                      // Handle where the source has one, else the email,
-                      // else the id -- always something identifying.
                       user.handle != null
                           ? '@${user.handle}'
                           : (user.email ?? 'id ${user.id}'),
@@ -84,7 +71,6 @@ class UserListTile extends StatelessWidget {
   }
 }
 
-/// Marks organisations and bots, which are otherwise indistinguishable.
 class _TypeBadge extends StatelessWidget {
   const _TypeBadge({required this.type});
 

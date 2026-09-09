@@ -1,46 +1,15 @@
-/// RFC 5988 `Link` header parsing for GitHub's cursor pagination.
 library;
 
-/// Extracts pagination cursors from GitHub's `Link` response header.
-///
-/// Lives under the GitHub implementation because it is GitHub-specific:
-/// reqres.in returns `page`/`total_pages` in the response body and sends no
-/// Link header at all. Keeping it here rather than in `core/network` stops it
-/// looking like shared infrastructure that both sources use.
-///
-/// An instance rather than a static utility so it can be injected: the remote
-/// data source depends on this type, not on a global function, which keeps it
-/// unit-testable with a stub parser and makes the dependency visible in the
-/// constructor rather than hidden in the body.
-///
-/// The real header looks exactly like this (one line, comma-separated):
-///
-/// ```
-/// Link: <https://api.github.com/users?per_page=10&since=46>; rel="next",
-///       <https://api.github.com/users{?since}>; rel="first"
-/// ```
-///
-/// This is authoritative for "is there a next page" -- preferring it over
-/// "the array came back empty" saves one whole request per exhausted list,
-/// which matters at 60 requests/hour. Constraint (a).
 class LinkHeaderParser {
-  /// `const` so the DI registration costs nothing and the type stays trivially
-  /// constructible in tests that do not want the service locator.
   const LinkHeaderParser();
 
-  /// Matches one `<url>; rel="name"` entry. `[^>]+` keeps commas inside the
-  /// URL from splitting entries, which a naive `split(',')` gets wrong.
   static final RegExp _entry = RegExp(r'<([^>]*)>\s*;\s*([^,]*)');
 
-  /// Matches `rel=next` or `rel="next"`, case-insensitively.
   static final RegExp _rel = RegExp(
     r'''rel\s*=\s*(?:"([^"]*)"|'([^']*)'|([^;,\s]+))''',
     caseSensitive: false,
   );
 
-  /// Returns a `rel -> url` map. Empty when [header] is null, blank or
-  /// unparseable -- a malformed header degrades to "no more pages", never
-  /// to an exception.
   Map<String, String> parse(String? header) {
     if (header == null || header.trim().isEmpty) {
       return const <String, String>{};
@@ -58,7 +27,6 @@ class LinkHeaderParser {
       final String? name = (rel.group(1) ?? rel.group(2) ?? rel.group(3))
           ?.trim()
           .toLowerCase();
-      // A rel may legally hold several space-separated names; index them all.
       if (name == null || name.isEmpty) continue;
       for (final String part in name.split(RegExp(r'\s+'))) {
         links.putIfAbsent(part, () => url);
@@ -67,14 +35,8 @@ class LinkHeaderParser {
     return links;
   }
 
-  /// The absolute URL of the next page, or null at the end of the list.
   String? nextUrl(String? header) => parse(header)['next'];
 
-  /// The `since` cursor from the `rel="next"` URL, or null when there is no
-  /// next page.
-  ///
-  /// [Uri.queryParameters] percent-decodes for us, so `since=46%32` and
-  /// templated URLs (`{?since}`, which carry no real value) both behave.
   int? nextSince(String? header) {
     final String? url = nextUrl(header);
     if (url == null) return null;

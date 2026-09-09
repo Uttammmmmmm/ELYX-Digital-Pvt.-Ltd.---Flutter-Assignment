@@ -1,18 +1,10 @@
-/// Fallback for an unknown or malformed route.
 library;
 
 import 'package:flutter/material.dart';
 
-/// Shown when a route name is unrecognised, or its arguments are the wrong
-/// type.
-///
-/// Exists so a routing mistake degrades to a screen the user can back out of
-/// rather than an exception. A thrown route error in release is a crash; this
-/// is a dead end with an exit.
 class NotFoundPage extends StatelessWidget {
   const NotFoundPage({required this.routeName, super.key});
 
-  /// The route that could not be resolved, echoed for debugging.
   final String? routeName;
 
   @override

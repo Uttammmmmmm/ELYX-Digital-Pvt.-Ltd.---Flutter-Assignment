@@ -1,13 +1,6 @@
 @Timeout(Duration(seconds: 15))
 library;
 
-// NOTE ON BLOC DISPOSAL: these tests deliberately do NOT close the bloc.
-// `Bloc.close()` never completes inside `testWidgets`, whose clock is faked --
-// it completes normally in a plain `test()` and in `bloc_test`, both of which
-// run in a real async zone, and `BlocProvider` never awaits it in production.
-// Awaiting it here deadlocks the isolate hard enough that even the test
-// timeout cannot fire. The blocs die with the test isolate.
-
 import 'dart:async';
 
 import 'package:dartz/dartz.dart';
@@ -50,7 +43,6 @@ void main() {
   setUp(() {
     installFakeAvatars();
     repository = MockUserRepository();
-    // Cold-start seed: no prior cache unless a test says otherwise.
     when(
       repository.getCachedUsers(),
     ).thenAnswer((_) async => const <UserSummary>[]);
@@ -93,11 +85,6 @@ void main() {
     ),
   ).thenAnswer((_) async => Left<Failure, PaginatedUsers>(failure));
 
-  /// Pumps the view at [size].
-  ///
-  /// Defaults to a COMPACT phone. flutter_test's default surface is 800x600,
-  /// which is the `expanded` size class -- so without this every test would
-  /// silently be exercising the tablet grid.
   Future<void> pump(
     WidgetTester tester, {
     bool fetch = true,
@@ -150,7 +137,7 @@ void main() {
     });
 
     testWidgets('shows the end-of-list footer', (WidgetTester tester) async {
-      stubSuccess(); // no cursor -> end
+      stubSuccess();
       await pump(tester);
 
       expect(find.byKey(const Key('pagination_end')), findsOneWidget);
@@ -210,7 +197,7 @@ void main() {
     testWidgets('the footer is hidden entirely while filtering', (
       WidgetTester tester,
     ) async {
-      stubSuccess(); // end of list, so the end footer would show unfiltered
+      stubSuccess();
       await pump(tester);
       expect(find.byKey(const Key('pagination_end')), findsOneWidget);
 
@@ -311,9 +298,6 @@ void main() {
     testWidgets('a short first page requests the next one automatically', (
       WidgetTester tester,
     ) async {
-      // Two tiles cannot fill the 600px test viewport, so maxScrollExtent is
-      // 0 and the scroll listener can never fire. Without the post-frame
-      // fill, pagination would stall here forever.
       stubSuccess(nextCursor: 2);
       await pump(tester);
 
@@ -329,7 +313,7 @@ void main() {
 
   group('pull to refresh', () {
     testWidgets('dispatches a forced refresh', (WidgetTester tester) async {
-      stubSuccess(); // end of list, so no auto viewport fill
+      stubSuccess();
       await pump(tester);
 
       await tester.fling(
@@ -398,11 +382,10 @@ void main() {
     testWidgets('rotation swaps layout without refiring the first page', (
       WidgetTester tester,
     ) async {
-      stubSuccess(); // end of list, so no auto viewport fill muddies the count
+      stubSuccess();
       await pump(tester, size: const Size(400, 800));
       expect(find.byType(UserListTile), findsWidgets);
 
-      // Rotate into landscape, crossing the 600dp breakpoint.
       tester.view.physicalSize = const Size(800, 400);
       await tester.pumpAndSettle();
 
@@ -445,25 +428,16 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // A RenderFlex overflow would have been recorded as an exception.
       expect(tester.takeException(), isNull);
       expect(find.byType(UserListTile), findsWidgets);
     });
 
     testWidgets('avatars carry a semantic label', (WidgetTester tester) async {
-      // The semantics tree is not built unless something asks for it.
-      // Disposed inside the body, not via addTearDown: flutter_test verifies
-      // handles at the end of the test body, before tearDowns run.
       final SemanticsHandle handle = tester.ensureSemantics();
 
-      // The Semantics wrapper lives outside the test seam, so the fake
-      // avatar still exercises it.
       stubSuccess();
       await pump(tester);
 
-      // A RegExp, not a String: the tile is tappable, so the avatar's label
-      // is MERGED into the row's node ("mojombo avatar mojombo id 1 · User")
-      // and an equality match would fail.
       expect(find.bySemanticsLabel(RegExp('mojombo avatar')), findsOneWidget);
 
       handle.dispose();

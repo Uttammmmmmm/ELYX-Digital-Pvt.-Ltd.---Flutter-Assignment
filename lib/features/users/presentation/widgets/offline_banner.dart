@@ -1,4 +1,3 @@
-/// Persistent "you are offline" bar.
 library;
 
 import 'package:flutter/material.dart';
@@ -7,19 +6,9 @@ import '../strings/users_strings.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 
-/// A thin bar shown while the device is offline and cached data is on screen.
-///
-/// Its whole purpose is honesty: the repository deliberately serves stale
-/// cached users rather than an error when there is no connection, which is
-/// the right behaviour ONLY if the user is told. Without this the app
-/// silently presents old data as current.
-///
-/// Takes a [Stream] rather than reaching for `NetworkInfo` itself, so no
-/// widget touches the service locator and tests can drive it directly.
 class OfflineBanner extends StatelessWidget {
   const OfflineBanner({required this.isOnline, super.key});
 
-  /// Emits false when the device has no network interface.
   final Stream<bool> isOnline;
 
   @override
@@ -27,8 +16,6 @@ class OfflineBanner extends StatelessWidget {
     return StreamBuilder<bool>(
       stream: isOnline,
       builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
-        // Absent data means "not known yet" -- assume online, because
-        // flashing an offline bar on every cold start would cry wolf.
         final bool online = snapshot.data ?? true;
         if (online) return const SizedBox.shrink();
 

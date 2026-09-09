@@ -1,4 +1,3 @@
-/// Rate-limit state with a reset time and a disabled retry.
 library;
 
 import 'dart:async';
@@ -13,16 +12,6 @@ import 'adaptive_centered_view.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/utils/duration_format.dart';
 
-/// Full-screen state for an exhausted GitHub quota. Constraint (d).
-///
-/// Deliberately not a generic error:
-///  - Retry stays DISABLED until [resetAt]. A button guaranteed to fail is
-///    worse than no button: it invites the user to keep trying, and each
-///    attempt is another 403.
-///  - It shows the wall-clock reset time AND a live countdown, so the wait is
-///    a known quantity rather than an indefinite one.
-///  - It names the real cause (60/hour unauthenticated) and the real fix (a
-///    token), because "something went wrong" leaves the user retrying forever.
 class RateLimitView extends StatefulWidget {
   const RateLimitView({
     required this.resetAt,
@@ -30,10 +19,8 @@ class RateLimitView extends StatefulWidget {
     super.key,
   });
 
-  /// When the quota returns.
   final DateTime resetAt;
 
-  /// Invoked only once the window has reopened.
   final VoidCallback onRetry;
 
   @override
@@ -60,14 +47,11 @@ class _RateLimitViewState extends State<RateLimitView> {
     if (!mounted) return;
     final Duration next = _remainingNow();
     setState(() => _remaining = next);
-    // Stop once actionable: no point burning a frame a second thereafter.
     if (next == Duration.zero) timer.cancel();
   }
 
   @override
   void dispose() {
-    // Without this the timer keeps firing setState on a disposed State after
-    // the user navigates away, which throws.
     _ticker?.cancel();
     super.dispose();
   }
@@ -116,7 +100,6 @@ class _RateLimitViewState extends State<RateLimitView> {
           const SizedBox(height: AppSpacing.lg),
           FilledButton.icon(
             key: const Key('rate_limit_retry_button'),
-            // Null disables the button until the window reopens.
             onPressed: canRetry ? widget.onRetry : null,
             icon: const Icon(Icons.refresh),
             label: const Text(UsersStrings.tryAgain),
