@@ -31,15 +31,14 @@ class CachedPageModel {
     PaginatedUsers page, {
     required Object? requestedCursor,
     DateTime? now,
-  }) =>
-      CachedPageModel(
-        users: page.users
-            .map((UserSummary u) => UserSummaryModel.fromEntity(u))
-            .toList(growable: false),
-        nextCursor: page.nextCursor,
-        requestedCursor: requestedCursor,
-        cachedAt: now ?? DateTime.now(),
-      );
+  }) => CachedPageModel(
+    users: page.users
+        .map((UserSummary u) => UserSummaryModel.fromEntity(u))
+        .toList(growable: false),
+    nextCursor: page.nextCursor,
+    requestedCursor: requestedCursor,
+    cachedAt: now ?? DateTime.now(),
+  );
 
   /// The users in this batch, in the order the API returned them.
   @HiveField(0)

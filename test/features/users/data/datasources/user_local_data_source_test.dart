@@ -27,8 +27,9 @@ void main() {
     Hive.init(tempDir.path);
     HiveInitializer.registerAdaptersOnce();
     pagesBox = await Hive.openBox<CachedPageModel>(CacheConstants.usersPageBox);
-    detailsBox =
-        await Hive.openBox<UserDetailModel>(CacheConstants.userDetailBox);
+    detailsBox = await Hive.openBox<UserDetailModel>(
+      CacheConstants.userDetailBox,
+    );
     dataSource = UserLocalDataSourceImpl(
       pagesBox: pagesBox,
       detailsBox: detailsBox,
@@ -55,9 +56,13 @@ void main() {
 
     test('different cursors never collide', () async {
       await dataSource.cacheUsersPage(
-          null, page(<UserSummary>[reqresUser(1)], nextCursor: 2));
+        null,
+        page(<UserSummary>[reqresUser(1)], nextCursor: 2),
+      );
       await dataSource.cacheUsersPage(
-          2, page(<UserSummary>[reqresUser(7)], nextCursor: null));
+        2,
+        page(<UserSummary>[reqresUser(7)], nextCursor: null),
+      );
 
       expect(dataSource.getCachedUsersPage(null)!.users.single.id, 1);
       expect(dataSource.getCachedUsersPage(2)!.users.single.id, 7);
@@ -67,7 +72,9 @@ void main() {
   group('batches', () {
     test('round trip through the generated adapter', () async {
       await dataSource.cacheUsersPage(
-          1, page(<UserSummary>[reqresUser(2, first: 'Janet')], nextCursor: 2));
+        1,
+        page(<UserSummary>[reqresUser(2, first: 'Janet')], nextCursor: 2),
+      );
 
       final CachedPageModel? cached = dataSource.getCachedUsersPage(1);
 
@@ -110,8 +117,7 @@ void main() {
         githubDetail(1, 'mojombo', bio: 'Cofounder', location: 'SF'),
       );
 
-      final UserDetailModel cached =
-          dataSource.getCachedUserDetail('mojombo')!;
+      final UserDetailModel cached = dataSource.getCachedUserDetail('mojombo')!;
 
       expect(cached.bio, 'Cofounder');
       expect(cached.hasStats, isTrue);
@@ -140,8 +146,11 @@ void main() {
 
       await dataSource.cacheUserDetail(reqresDetail(1));
 
-      expect(detailsBox.containsKey('stale-one'), isFalse,
-          reason: 'expired entries would be refetched anyway -- dead weight');
+      expect(
+        detailsBox.containsKey('stale-one'),
+        isFalse,
+        reason: 'expired entries would be refetched anyway -- dead weight',
+      );
       expect(dataSource.getCachedUserDetail('1'), isNotNull);
     });
 
@@ -161,8 +170,10 @@ void main() {
       // One more write triggers eviction.
       await dataSource.cacheUserDetail(reqresDetail(9999));
 
-      expect(detailsBox.length,
-          lessThanOrEqualTo(CacheConstants.maxCachedDetails));
+      expect(
+        detailsBox.length,
+        lessThanOrEqualTo(CacheConstants.maxCachedDetails),
+      );
       // The newest survives, the oldest does not.
       expect(dataSource.getCachedUserDetail('9999'), isNotNull);
       expect(detailsBox.containsKey('user-0'), isFalse);
@@ -177,28 +188,41 @@ void main() {
   });
 
   group('getAllCachedUsers', () {
-    test('concatenates every batch in CURSOR order, not insertion order',
-        () async {
-      // Written deliberately out of order.
-      await dataSource.cacheUsersPage(
-          2, page(<UserSummary>[reqresUser(7), reqresUser(8)], nextCursor: 3));
-      await dataSource.cacheUsersPage(
-          null, page(<UserSummary>[reqresUser(1), reqresUser(2)], nextCursor: 2));
+    test(
+      'concatenates every batch in CURSOR order, not insertion order',
+      () async {
+        // Written deliberately out of order.
+        await dataSource.cacheUsersPage(
+          2,
+          page(<UserSummary>[reqresUser(7), reqresUser(8)], nextCursor: 3),
+        );
+        await dataSource.cacheUsersPage(
+          null,
+          page(<UserSummary>[reqresUser(1), reqresUser(2)], nextCursor: 2),
+        );
 
-      expect(
-        dataSource.getAllCachedUsers().map((UserSummary u) => u.id),
-        <int>[1, 2, 7, 8],
-      );
-    });
+        expect(
+          dataSource.getAllCachedUsers().map((UserSummary u) => u.id),
+          <int>[1, 2, 7, 8],
+        );
+      },
+    );
 
     test('deduplicates by id across overlapping batches', () async {
       await dataSource.cacheUsersPage(
-          null, page(<UserSummary>[reqresUser(1), reqresUser(2)], nextCursor: 2));
+        null,
+        page(<UserSummary>[reqresUser(1), reqresUser(2)], nextCursor: 2),
+      );
       await dataSource.cacheUsersPage(
-          2, page(<UserSummary>[reqresUser(2), reqresUser(3)], nextCursor: null));
+        2,
+        page(<UserSummary>[reqresUser(2), reqresUser(3)], nextCursor: null),
+      );
 
-      expect(dataSource.getAllCachedUsers().map((UserSummary u) => u.id),
-          <int>[1, 2, 3]);
+      expect(dataSource.getAllCachedUsers().map((UserSummary u) => u.id), <int>[
+        1,
+        2,
+        3,
+      ]);
     });
 
     test('is empty when nothing is cached', () {
@@ -222,7 +246,9 @@ void main() {
   group('clearing', () {
     test('clearUsersPages empties batches but preserves profiles', () async {
       await dataSource.cacheUsersPage(
-          null, page(<UserSummary>[reqresUser(1)], nextCursor: 2));
+        null,
+        page(<UserSummary>[reqresUser(1)], nextCursor: 2),
+      );
       await dataSource.cacheUserDetail(reqresDetail(1));
 
       await dataSource.clearUsersPages();
@@ -233,7 +259,9 @@ void main() {
 
     test('clearAll empties both', () async {
       await dataSource.cacheUsersPage(
-          null, page(<UserSummary>[reqresUser(1)], nextCursor: 2));
+        null,
+        page(<UserSummary>[reqresUser(1)], nextCursor: 2),
+      );
       await dataSource.cacheUserDetail(reqresDetail(1));
 
       await dataSource.clearAll();

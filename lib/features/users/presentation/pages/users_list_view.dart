@@ -137,19 +137,20 @@ class _UsersListViewState extends State<UsersListView> {
   /// the bloc's own stream until the status leaves `refreshing` ties the
   /// indicator to the real work.
   Future<void> _onRefresh() async {
-    final UsersBloc bloc = context.read<UsersBloc>()..add(const UsersRefreshed());
-    await bloc.stream
-        .firstWhere((UsersState s) => s.status != UsersStatus.refreshing);
+    final UsersBloc bloc = context.read<UsersBloc>()
+      ..add(const UsersRefreshed());
+    await bloc.stream.firstWhere(
+      (UsersState s) => s.status != UsersStatus.refreshing,
+    );
   }
 
   /// Pushes the detail screen, handing over what the list already knows so
   /// the next screen opens with a real header rather than a spinner.
-  void _openDetail(UserSummary user) => Navigator.of(context).pushNamed(
-        AppRoutes.userDetail,
-        arguments: user,
-      );
+  void _openDetail(UserSummary user) =>
+      Navigator.of(context).pushNamed(AppRoutes.userDetail, arguments: user);
 
-  void _retry() => context.read<UsersBloc>().add(const UsersFailedPageRetried());
+  void _retry() =>
+      context.read<UsersBloc>().add(const UsersFailedPageRetried());
 
   void _loadMore() =>
       context.read<UsersBloc>().add(const UsersNextPageRequested());
@@ -175,8 +176,9 @@ class _UsersListViewState extends State<UsersListView> {
           Expanded(
             child: BlocConsumer<UsersBloc, UsersState>(
               // A newly-arrived page may still not fill the viewport.
-              listener: (_, _) => WidgetsBinding.instance
-                  .addPostFrameCallback((_) => _fillViewport()),
+              listener: (_, _) => WidgetsBinding.instance.addPostFrameCallback(
+                (_) => _fillViewport(),
+              ),
               builder: _body,
             ),
           ),
@@ -223,8 +225,8 @@ class _UsersListViewState extends State<UsersListView> {
       child: ResponsiveBuilder(
         builder: (BuildContext context, WindowSizeClass sizeClass) =>
             sizeClass == WindowSizeClass.compact
-                ? _buildList(context, state)
-                : _buildGrid(context, state, sizeClass),
+            ? _buildList(context, state)
+            : _buildGrid(context, state, sizeClass),
       ),
     );
   }
@@ -249,19 +251,19 @@ class _UsersListViewState extends State<UsersListView> {
       slivers: <Widget>[
         SliverFixedExtentList(
           itemExtent: UserTileMetrics.heightFor(context),
-          delegate: SliverChildBuilderDelegate(
-            (BuildContext context, int index) {
-              // Renders visibleUsers, never allUsers: the search filter is
-              // the view, the pagination sequence is the model.
-              final UserSummary user = state.visibleUsers[index];
-              return UserListTile(
-                key: Key('user_tile_${user.id}'),
-                user: user,
-                onTap: () => _openDetail(user),
-              );
-            },
-            childCount: state.visibleUsers.length,
-          ),
+          delegate: SliverChildBuilderDelegate((
+            BuildContext context,
+            int index,
+          ) {
+            // Renders visibleUsers, never allUsers: the search filter is
+            // the view, the pagination sequence is the model.
+            final UserSummary user = state.visibleUsers[index];
+            return UserListTile(
+              key: Key('user_tile_${user.id}'),
+              user: user,
+              onTap: () => _openDetail(user),
+            );
+          }, childCount: state.visibleUsers.length),
         ),
         SliverToBoxAdapter(child: _footer(state)),
       ],
@@ -292,17 +294,17 @@ class _UsersListViewState extends State<UsersListView> {
               crossAxisSpacing: AppSpacing.md,
               mainAxisExtent: UserTileMetrics.cardHeightFor(context),
             ),
-            delegate: SliverChildBuilderDelegate(
-              (BuildContext context, int index) {
-                final UserSummary user = state.visibleUsers[index];
-                return UserGridCard(
-                  key: Key('user_tile_${user.id}'),
-                  user: user,
-                  onTap: () => _openDetail(user),
-                );
-              },
-              childCount: state.visibleUsers.length,
-            ),
+            delegate: SliverChildBuilderDelegate((
+              BuildContext context,
+              int index,
+            ) {
+              final UserSummary user = state.visibleUsers[index];
+              return UserGridCard(
+                key: Key('user_tile_${user.id}'),
+                user: user,
+                onTap: () => _openDetail(user),
+              );
+            }, childCount: state.visibleUsers.length),
           ),
         ),
         SliverToBoxAdapter(child: _footer(state)),
@@ -311,10 +313,10 @@ class _UsersListViewState extends State<UsersListView> {
   }
 
   Widget _footer(UsersState state) => PaginationFooter(
-        mode: _footerMode(state),
-        errorMessage: state.failure?.message,
-        onRetry: _retry,
-      );
+    mode: _footerMode(state),
+    errorMessage: state.failure?.message,
+    onRetry: _retry,
+  );
 
   /// Which footer the end of the list should show.
   ///

@@ -11,19 +11,17 @@ import 'package:flutter/material.dart';
 /// `path_provider`, neither of which exists under `flutter_test`; the
 /// resulting async failures surface as errors in unrelated tests.
 void installFakeAvatars() {
-  UserAvatar.debugOverrideBuilder =
-      (String url, String login, double radius) => SizedBox(
-            key: const Key('fake_avatar'),
-            width: radius * 2,
-            height: radius * 2,
-          );
+  UserAvatar.debugOverrideBuilder = (String url, String login, double radius) =>
+      SizedBox(
+        key: const Key('fake_avatar'),
+        width: radius * 2,
+        height: radius * 2,
+      );
 }
 
 /// Restores the production avatar.
 void restoreAvatars() => UserAvatar.debugOverrideBuilder = null;
 
 /// Wraps [child] in the app's theme and a Navigator.
-Widget wrapForTest(Widget child) => MaterialApp(
-      theme: AppTheme.light,
-      home: child,
-    );
+Widget wrapForTest(Widget child) =>
+    MaterialApp(theme: AppTheme.light, home: child);

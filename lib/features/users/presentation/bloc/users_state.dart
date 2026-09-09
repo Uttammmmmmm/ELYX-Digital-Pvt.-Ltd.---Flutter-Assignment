@@ -190,13 +190,13 @@ class UsersState extends Equatable {
 
   @override
   List<Object?> get props => <Object?>[
-        status,
-        allUsers,
-        visibleUsers,
-        searchQuery,
-        nextCursor,
-        hasReachedEnd,
-        failure,
-        rateLimitResetAt,
-      ];
+    status,
+    allUsers,
+    visibleUsers,
+    searchQuery,
+    nextCursor,
+    hasReachedEnd,
+    failure,
+    rateLimitResetAt,
+  ];
 }

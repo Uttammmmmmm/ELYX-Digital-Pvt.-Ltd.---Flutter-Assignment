@@ -32,16 +32,15 @@ void main() {
         initialRoute: AppRoutes.usersList,
         onGenerateRoute: (RouteSettings settings) =>
             settings.name == AppRoutes.usersList
-                ? MaterialPageRoute<void>(
-                    builder: (BuildContext context) => Scaffold(
-                      body: TextButton(
-                        onPressed: () =>
-                            Navigator.of(context).pushNamed('/bogus'),
-                        child: const Text('go'),
-                      ),
-                    ),
-                  )
-                : RouteGenerator.generate(settings),
+            ? MaterialPageRoute<void>(
+                builder: (BuildContext context) => Scaffold(
+                  body: TextButton(
+                    onPressed: () => Navigator.of(context).pushNamed('/bogus'),
+                    child: const Text('go'),
+                  ),
+                ),
+              )
+            : RouteGenerator.generate(settings),
       ),
     );
 

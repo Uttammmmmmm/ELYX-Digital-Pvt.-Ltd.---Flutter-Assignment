@@ -45,8 +45,9 @@ class AdaptiveCenteredView extends StatelessWidget {
       builder: (BuildContext context, BoxConstraints constraints) {
         // Unbounded (e.g. a ListView slot) -> no minimum; the scroll view
         // shrink-wraps and the outer scrollable handles overflow.
-        final double minHeight =
-            constraints.hasBoundedHeight ? constraints.maxHeight : 0;
+        final double minHeight = constraints.hasBoundedHeight
+            ? constraints.maxHeight
+            : 0;
 
         return SingleChildScrollView(
           padding: padding,

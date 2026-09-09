@@ -48,32 +48,32 @@ enum ApiSource {
   /// An unrecognised value falls back to the default rather than throwing: a
   /// typo in a build flag should not be a launch crash.
   static ApiSource fromName(String name) => switch (name.toLowerCase()) {
-        'github' => ApiSource.github,
-        _ => ApiSource.reqres,
-      };
+    'github' => ApiSource.github,
+    _ => ApiSource.reqres,
+  };
 
   /// Connection details for this source.
   ApiSourceConfig config({required String reqresApiKey}) => switch (this) {
-        ApiSource.reqres => ApiSourceConfig(
-            name: 'reqres.in',
-            baseUrl: 'https://reqres.in/api',
-            headers: <String, String>{
-              'Accept': 'application/json',
-              // REQUIRED. Without it reqres returns
-              // 401 {"error":"missing_api_key"} on every call.
-              'x-api-key': reqresApiKey,
-            },
-          ),
-        ApiSource.github => const ApiSourceConfig(
-            name: 'api.github.com',
-            baseUrl: 'https://api.github.com',
-            headers: <String, String>{
-              'Accept': 'application/vnd.github+json',
-              'X-GitHub-Api-Version': '2022-11-28',
-              'User-Agent': 'elyx-digital-assignment',
-            },
-          ),
-      };
+    ApiSource.reqres => ApiSourceConfig(
+      name: 'reqres.in',
+      baseUrl: 'https://reqres.in/api',
+      headers: <String, String>{
+        'Accept': 'application/json',
+        // REQUIRED. Without it reqres returns
+        // 401 {"error":"missing_api_key"} on every call.
+        'x-api-key': reqresApiKey,
+      },
+    ),
+    ApiSource.github => const ApiSourceConfig(
+      name: 'api.github.com',
+      baseUrl: 'https://api.github.com',
+      headers: <String, String>{
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'elyx-digital-assignment',
+      },
+    ),
+  };
 }
 
 /// The reqres key, injected at build time.

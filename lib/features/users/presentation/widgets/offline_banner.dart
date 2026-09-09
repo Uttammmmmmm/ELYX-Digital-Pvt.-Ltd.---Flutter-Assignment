@@ -37,7 +37,10 @@ class OfflineBanner extends StatelessWidget {
           key: const Key('offline_banner'),
           color: theme.colorScheme.secondaryContainer,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm,
+            ),
             child: Row(
               children: <Widget>[
                 Icon(

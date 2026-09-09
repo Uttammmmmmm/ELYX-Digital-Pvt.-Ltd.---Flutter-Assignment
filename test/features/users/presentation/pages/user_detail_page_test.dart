@@ -31,17 +31,16 @@ void main() {
     String? first = 'Janet',
     String? last = 'Weaver',
     String? email = 'janet.weaver@reqres.in',
-  }) =>
-      UserDetail(
-        user: UserSummary(
-          id: 2,
-          detailId: '2',
-          avatarUrl: 'https://reqres.in/img/faces/2-image.jpg',
-          firstName: first,
-          lastName: last,
-          email: email,
-        ),
-      );
+  }) => UserDetail(
+    user: UserSummary(
+      id: 2,
+      detailId: '2',
+      avatarUrl: 'https://reqres.in/img/faces/2-image.jpg',
+      firstName: first,
+      lastName: last,
+      email: email,
+    ),
+  );
 
   setUp(() {
     installFakeAvatars();
@@ -50,11 +49,13 @@ void main() {
 
   tearDown(restoreAvatars);
 
-  void stubDetail(UserDetail detail) => when(repository.getUserDetail('2'))
-      .thenAnswer((_) async => Right<Failure, UserDetail>(detail));
+  void stubDetail(UserDetail detail) => when(
+    repository.getUserDetail('2'),
+  ).thenAnswer((_) async => Right<Failure, UserDetail>(detail));
 
-  void stubFailure(Failure failure) => when(repository.getUserDetail(any))
-      .thenAnswer((_) async => Left<Failure, UserDetail>(failure));
+  void stubFailure(Failure failure) => when(
+    repository.getUserDetail(any),
+  ).thenAnswer((_) async => Left<Failure, UserDetail>(failure));
 
   Future<void> pump(
     WidgetTester tester, {
@@ -109,24 +110,29 @@ void main() {
       stubDetail(detailWith());
       await pump(tester);
 
-      final DetailInfoRow row =
-          tester.widget<DetailInfoRow>(find.byKey(const Key('row_name')));
+      final DetailInfoRow row = tester.widget<DetailInfoRow>(
+        find.byKey(const Key('row_name')),
+      );
       expect(row.value, 'Janet Weaver');
       expect(row.unavailable, isFalse);
     });
 
-    testWidgets('name falls back and is never blank when the source has none',
-        (WidgetTester tester) async {
-      const UserSummary bare =
-          UserSummary(id: 2, detailId: '2', avatarUrl: 'a');
+    testWidgets('name falls back and is never blank when the source has none', (
+      WidgetTester tester,
+    ) async {
+      const UserSummary bare = UserSummary(
+        id: 2,
+        detailId: '2',
+        avatarUrl: 'a',
+      );
       when(repository.getUserDetail('2')).thenAnswer(
-        (_) async =>
-            const Right<Failure, UserDetail>(UserDetail(user: bare)),
+        (_) async => const Right<Failure, UserDetail>(UserDetail(user: bare)),
       );
       await pump(tester, withSeed: bare);
 
-      final DetailInfoRow row =
-          tester.widget<DetailInfoRow>(find.byKey(const Key('row_name')));
+      final DetailInfoRow row = tester.widget<DetailInfoRow>(
+        find.byKey(const Key('row_name')),
+      );
       expect(row.value, 'User 2');
     });
 
@@ -136,20 +142,23 @@ void main() {
       stubDetail(detailWith());
       await pump(tester);
 
-      final DetailInfoRow row =
-          tester.widget<DetailInfoRow>(find.byKey(const Key('row_email')));
+      final DetailInfoRow row = tester.widget<DetailInfoRow>(
+        find.byKey(const Key('row_email')),
+      );
       expect(row.value, 'janet.weaver@reqres.in');
       expect(row.unavailable, isFalse);
       expect(row.onTap, isNotNull);
     });
 
-    testWidgets('a missing email renders as unavailable, not blank or absent',
-        (WidgetTester tester) async {
+    testWidgets('a missing email renders as unavailable, not blank or absent', (
+      WidgetTester tester,
+    ) async {
       stubDetail(detailWith(email: null));
       await pump(tester);
 
-      final DetailInfoRow row =
-          tester.widget<DetailInfoRow>(find.byKey(const Key('row_email')));
+      final DetailInfoRow row = tester.widget<DetailInfoRow>(
+        find.byKey(const Key('row_email')),
+      );
       expect(row.value, UsersStrings.emailUnavailable);
       expect(row.unavailable, isTrue);
       expect(row.onTap, isNull, reason: 'a placeholder must not look tappable');
@@ -160,8 +169,9 @@ void main() {
       stubDetail(detailWith());
       await pump(tester);
 
-      final DetailInfoRow row =
-          tester.widget<DetailInfoRow>(find.byKey(const Key('row_phone')));
+      final DetailInfoRow row = tester.widget<DetailInfoRow>(
+        find.byKey(const Key('row_phone')),
+      );
       expect(row.label, UsersStrings.labelPhone);
       expect(row.value, 'Not provided by the API');
       expect(row.unavailable, isTrue);
@@ -198,8 +208,9 @@ void main() {
       expect(find.text('SF'), findsOneWidget);
       expect(find.text('Cofounder'), findsOneWidget);
       // member-since via intl.
-      final DetailInfoRow row = tester
-          .widget<DetailInfoRow>(find.byKey(const Key('row_member_since')));
+      final DetailInfoRow row = tester.widget<DetailInfoRow>(
+        find.byKey(const Key('row_member_since')),
+      );
       expect(row.value, 'October 2007');
     });
   });
@@ -212,8 +223,11 @@ void main() {
       await pump(tester);
 
       expect(find.byKey(const Key('error_view')), findsOneWidget);
-      expect(find.byKey(const Key('detail_name')), findsOneWidget,
-          reason: 'the user must still see who they tapped');
+      expect(
+        find.byKey(const Key('detail_name')),
+        findsOneWidget,
+        reason: 'the user must still see who they tapped',
+      );
     });
 
     testWidgets('retry recovers', (WidgetTester tester) async {

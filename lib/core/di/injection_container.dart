@@ -108,9 +108,9 @@ Future<void> init({required HiveBoxes boxes}) async {
   // substituted in tests without touching anything downstream.
   // ---------------------------------------------------------------------
   sl.registerLazySingleton<UserLocalDataSource>(
-      () => UserLocalDataSourceImpl(
-        pagesBox: sl<HiveBoxes>().pages,
-        detailsBox: sl<HiveBoxes>().details,
+    () => UserLocalDataSourceImpl(
+      pagesBox: sl<HiveBoxes>().pages,
+      detailsBox: sl<HiveBoxes>().details,
     ),
   );
 
@@ -165,10 +165,8 @@ Future<void> init({required HiveBoxes boxes}) async {
     // list already had. Passing it at resolution time keeps the seed out of
     // global state -- two detail screens open at once each get their own.
     ..registerFactoryParam<UserDetailBloc, UserSummary, void>(
-      (UserSummary seed, _) => UserDetailBloc(
-        getUserDetail: sl<GetUserDetail>(),
-        seed: seed,
-      ),
+      (UserSummary seed, _) =>
+          UserDetailBloc(getUserDetail: sl<GetUserDetail>(), seed: seed),
     );
 }
 
@@ -176,26 +174,28 @@ Future<void> init({required HiveBoxes boxes}) async {
 ///
 /// `reqres` is the default because the brief's prose names it; `github` is
 /// retained because the brief's links point there.
-const String kApiSource =
-    String.fromEnvironment('API_SOURCE', defaultValue: 'reqres');
+const String kApiSource = String.fromEnvironment(
+  'API_SOURCE',
+  defaultValue: 'reqres',
+);
 
 /// Builds the selected [UsersApi].
 ///
 /// An unknown value falls back to the default rather than throwing: a typo in
 /// a build flag should not be a launch crash.
 UsersApi _buildUsersApi() => switch (kApiSource.toLowerCase()) {
-      'github' => GitHubUsersApi(
-          client: sl<DioClient>(),
-          linkHeaderParser: sl<LinkHeaderParser>(),
-        ),
-      _ => ReqresUsersApi(
-          client: sl<DioClient>(),
-          apiKey: const String.fromEnvironment(
-            ReqresUsersApi.apiKeyDefine,
-            defaultValue: ReqresUsersApi.defaultApiKey,
-          ),
-        ),
-    };
+  'github' => GitHubUsersApi(
+    client: sl<DioClient>(),
+    linkHeaderParser: sl<LinkHeaderParser>(),
+  ),
+  _ => ReqresUsersApi(
+    client: sl<DioClient>(),
+    apiKey: const String.fromEnvironment(
+      ReqresUsersApi.apiKeyDefine,
+      defaultValue: ReqresUsersApi.defaultApiKey,
+    ),
+  ),
+};
 
 /// Tears the graph down. Used between tests.
 Future<void> resetDependencies() => sl.reset();

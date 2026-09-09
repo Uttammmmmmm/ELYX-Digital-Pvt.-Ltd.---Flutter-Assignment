@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 const UserSummary _u = UserSummary(
   id: 1,
   detailId: 'mojombo',
-      handle: 'mojombo',
+  handle: 'mojombo',
   avatarUrl: 'a',
   profileUrl: 'h',
   accountType: 'User',
@@ -61,8 +61,11 @@ void main() {
     });
 
     test('clearNextCursor nulls the cursor -- passing null cannot', () {
-      expect(base.copyWith(nextCursor: null).nextCursor, 7,
-          reason: 'null means "unchanged"');
+      expect(
+        base.copyWith(nextCursor: null).nextCursor,
+        7,
+        reason: 'null means "unchanged"',
+      );
       expect(base.copyWith(clearNextCursor: true).nextCursor, isNull);
     });
   });

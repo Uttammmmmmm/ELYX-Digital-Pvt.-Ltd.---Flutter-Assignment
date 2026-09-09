@@ -19,7 +19,7 @@ import '../../../../helpers/widget_harness.dart';
 const UserSummary _user = UserSummary(
   id: 1,
   detailId: 'mojombo',
-      handle: 'mojombo',
+  handle: 'mojombo',
   avatarUrl: 'https://avatars.githubusercontent.com/u/1?v=4',
   profileUrl: 'https://github.com/mojombo',
   accountType: 'User',
@@ -215,7 +215,10 @@ void main() {
     });
 
     testWidgets('end mode says so', (WidgetTester tester) async {
-      await pump(tester, const PaginationFooter(mode: PaginationFooterMode.end));
+      await pump(
+        tester,
+        const PaginationFooter(mode: PaginationFooterMode.end),
+      );
 
       expect(find.byKey(const Key('pagination_end')), findsOneWidget);
       expect(find.text("You've reached the end"), findsOneWidget);
@@ -224,7 +227,10 @@ void main() {
     testWidgets('idle mode renders nothing visible', (
       WidgetTester tester,
     ) async {
-      await pump(tester, const PaginationFooter(mode: PaginationFooterMode.idle));
+      await pump(
+        tester,
+        const PaginationFooter(mode: PaginationFooterMode.idle),
+      );
 
       expect(find.byKey(const Key('pagination_idle')), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsNothing);
@@ -237,17 +243,17 @@ void main() {
     ) async {
       await pump(tester, OfflineBanner(isOnline: const Stream<bool>.empty()));
 
-      expect(find.byKey(const Key('offline_banner')), findsNothing,
-          reason: 'flashing an offline bar on every cold start cries wolf');
+      expect(
+        find.byKey(const Key('offline_banner')),
+        findsNothing,
+        reason: 'flashing an offline bar on every cold start cries wolf',
+      );
     });
 
     testWidgets('appears when the stream reports offline', (
       WidgetTester tester,
     ) async {
-      await pump(
-        tester,
-        OfflineBanner(isOnline: Stream<bool>.value(false)),
-      );
+      await pump(tester, OfflineBanner(isOnline: Stream<bool>.value(false)));
 
       expect(find.byKey(const Key('offline_banner')), findsOneWidget);
     });
@@ -258,10 +264,7 @@ void main() {
       WidgetTester tester,
     ) async {
       bool tapped = false;
-      await pump(
-        tester,
-        UserListTile(user: _user, onTap: () => tapped = true),
-      );
+      await pump(tester, UserListTile(user: _user, onTap: () => tapped = true));
 
       // A GitHub-shaped user has no name, so displayName is the handle and
       // the subtitle repeats it as the @handle.
@@ -282,7 +285,7 @@ void main() {
           user: const UserSummary(
             id: 2,
             detailId: 'a-very-long-github-login-name-abcdefghi',
-      handle: 'a-very-long-github-login-name-abcdefghi',
+            handle: 'a-very-long-github-login-name-abcdefghi',
             avatarUrl: '',
             profileUrl: '',
             accountType: 'User',
@@ -308,7 +311,7 @@ void main() {
           user: const UserSummary(
             id: 3,
             detailId: 'github',
-      handle: 'github',
+            handle: 'github',
             avatarUrl: '',
             profileUrl: '',
             accountType: 'Organization',

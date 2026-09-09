@@ -23,8 +23,8 @@ class UserDetailBloc extends Bloc<UserDetailEvent, UserDetailState> {
   UserDetailBloc({
     required GetUserDetail getUserDetail,
     required UserSummary seed,
-  })  : _getUserDetail = getUserDetail,
-        super(UserDetailState(seed: seed)) {
+  }) : _getUserDetail = getUserDetail,
+       super(UserDetailState(seed: seed)) {
     // Droppable: a double-tapped Retry, or a rebuild that re-dispatches,
     // must not spend two requests.
     on<UserDetailRequested>(
@@ -45,8 +45,9 @@ class UserDetailBloc extends Bloc<UserDetailEvent, UserDetailState> {
   Future<void> _load(Emitter<UserDetailState> emit, String detailId) async {
     emit(state.copyWith(status: UserDetailStatus.loading, clearFailure: true));
 
-    final Either<Failure, UserDetail> result =
-        await _getUserDetail(GetUserDetailParams(detailId));
+    final Either<Failure, UserDetail> result = await _getUserDetail(
+      GetUserDetailParams(detailId),
+    );
 
     // Checked after the await, before emitting. A bloc closed while the
     // request was in flight -- the user tapped back before the profile
@@ -57,10 +58,8 @@ class UserDetailBloc extends Bloc<UserDetailEvent, UserDetailState> {
 
     emit(
       result.fold(
-        (Failure failure) => state.copyWith(
-          status: UserDetailStatus.failure,
-          failure: failure,
-        ),
+        (Failure failure) =>
+            state.copyWith(status: UserDetailStatus.failure, failure: failure),
         (UserDetail detail) => state.copyWith(
           status: UserDetailStatus.success,
           detail: detail,

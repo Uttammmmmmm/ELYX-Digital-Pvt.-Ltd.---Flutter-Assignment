@@ -12,4 +12,5 @@ Map<String, dynamic> fixtureMap(String name) =>
     jsonDecode(fixture(name)) as Map<String, dynamic>;
 
 /// Reads `test/fixtures/<name>` and decodes it as a JSON array.
-List<dynamic> fixtureList(String name) => jsonDecode(fixture(name)) as List<dynamic>;
+List<dynamic> fixtureList(String name) =>
+    jsonDecode(fixture(name)) as List<dynamic>;

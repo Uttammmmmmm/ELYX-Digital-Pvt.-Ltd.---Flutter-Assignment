@@ -90,8 +90,5 @@ AppException _mapBadResponse(DioException error) {
     return ServerException('GitHub server error', statusCode: status);
   }
 
-  return ServerException(
-    'Unexpected response from GitHub',
-    statusCode: status,
-  );
+  return ServerException('Unexpected response from GitHub', statusCode: status);
 }

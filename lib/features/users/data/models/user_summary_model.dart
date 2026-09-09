@@ -33,16 +33,16 @@ class UserSummaryModel extends UserSummary {
 
   /// Narrows an entity for caching.
   factory UserSummaryModel.fromEntity(UserSummary user) => UserSummaryModel(
-        id: user.id,
-        detailId: user.detailId,
-        avatarUrl: user.avatarUrl,
-        handle: user.handle,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        profileUrl: user.profileUrl,
-        accountType: user.accountType,
-      );
+    id: user.id,
+    detailId: user.detailId,
+    avatarUrl: user.avatarUrl,
+    handle: user.handle,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    email: user.email,
+    profileUrl: user.profileUrl,
+    accountType: user.accountType,
+  );
 
   @HiveField(0)
   @override

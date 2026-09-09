@@ -17,13 +17,13 @@ UserSummary reqresUser(int id, {String? first, String? last, String? email}) =>
 
 /// A GitHub-shaped user: a handle, no name, no email.
 UserSummary githubUser(int id, String handle) => UserSummary(
-      id: id,
-      detailId: handle,
-      avatarUrl: 'https://avatars.githubusercontent.com/u/$id?v=4',
-      handle: handle,
-      profileUrl: 'https://github.com/$handle',
-      accountType: 'User',
-    );
+  id: id,
+  detailId: handle,
+  avatarUrl: 'https://avatars.githubusercontent.com/u/$id?v=4',
+  handle: handle,
+  profileUrl: 'https://github.com/$handle',
+  accountType: 'User',
+);
 
 /// A profile with no source-specific extras -- the reqres shape.
 UserDetail reqresDetail(int id, {String? first, String? last, String? email}) =>
@@ -40,15 +40,14 @@ UserDetail githubDetail(
   String? location,
   String? blog,
   DateTime? createdAt,
-}) =>
-    UserDetail(
-      user: githubUser(id, handle),
-      bio: bio,
-      company: company,
-      location: location,
-      blog: blog,
-      publicRepos: 66,
-      followers: 23000,
-      following: 11,
-      createdAt: createdAt ?? DateTime.utc(2007, 10, 20),
-    );
+}) => UserDetail(
+  user: githubUser(id, handle),
+  bio: bio,
+  company: company,
+  location: location,
+  blog: blog,
+  publicRepos: 66,
+  followers: 23000,
+  following: 11,
+  createdAt: createdAt ?? DateTime.utc(2007, 10, 20),
+);

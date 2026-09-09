@@ -26,10 +26,10 @@ enum WindowSizeClass {
 
   /// Grid columns appropriate to this class.
   int get gridColumns => switch (this) {
-        WindowSizeClass.compact => 1,
-        WindowSizeClass.medium => 2,
-        WindowSizeClass.expanded => 3,
-      };
+    WindowSizeClass.compact => 1,
+    WindowSizeClass.medium => 2,
+    WindowSizeClass.expanded => 3,
+  };
 }
 
 /// Rebuilds its child with the [WindowSizeClass] of the space it was given.
@@ -45,11 +45,11 @@ class ResponsiveBuilder extends StatelessWidget {
 
   /// Called with the size class of the available width.
   final Widget Function(BuildContext context, WindowSizeClass sizeClass)
-      builder;
+  builder;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
-        builder: (BuildContext context, BoxConstraints constraints) =>
-            builder(context, WindowSizeClass.fromWidth(constraints.maxWidth)),
-      );
+    builder: (BuildContext context, BoxConstraints constraints) =>
+        builder(context, WindowSizeClass.fromWidth(constraints.maxWidth)),
+  );
 }

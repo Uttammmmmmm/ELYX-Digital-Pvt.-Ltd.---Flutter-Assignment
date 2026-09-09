@@ -53,7 +53,9 @@ class UserGridCard extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xs / 2),
               Text(
-                user.handle != null ? '@${user.handle}' : (user.email ?? 'id ${user.id}'),
+                user.handle != null
+                    ? '@${user.handle}'
+                    : (user.email ?? 'id ${user.id}'),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodySmall,

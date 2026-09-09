@@ -98,9 +98,9 @@ abstract final class ApiConstants {
   /// malformed Bearer token as a hard 401, which is worse than being
   /// unauthenticated.
   static Map<String, String> get defaultHeaders => <String, String>{
-        headerAccept: acceptJson,
-        headerApiVersion: apiVersion,
-        headerUserAgent: userAgent,
-        if (hasToken) headerAuthorization: 'Bearer $githubToken',
-      };
+    headerAccept: acceptJson,
+    headerApiVersion: apiVersion,
+    headerUserAgent: userAgent,
+    if (hasToken) headerAuthorization: 'Bearer $githubToken',
+  };
 }

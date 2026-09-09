@@ -21,10 +21,13 @@ const bool kExpectToken = bool.fromEnvironment('EXPECT_TOKEN');
 
 void main() {
   test('the --dart-define actually reached the compiler', () {
-    expect(ApiConstants.hasToken, kExpectToken,
-        reason: kExpectToken
-            ? 'ran with EXPECT_TOKEN=true but no GITHUB_TOKEN was compiled in'
-            : 'a token leaked into an unauthenticated build');
+    expect(
+      ApiConstants.hasToken,
+      kExpectToken,
+      reason: kExpectToken
+          ? 'ran with EXPECT_TOKEN=true but no GITHUB_TOKEN was compiled in'
+          : 'a token leaked into an unauthenticated build',
+    );
   });
 
   group('required GitHub headers', () {
@@ -33,8 +36,11 @@ void main() {
 
       expect(headers[ApiConstants.headerAccept], ApiConstants.acceptJson);
       expect(headers[ApiConstants.headerApiVersion], ApiConstants.apiVersion);
-      expect(headers[ApiConstants.headerUserAgent], isNotEmpty,
-          reason: 'GitHub rejects requests with no User-Agent');
+      expect(
+        headers[ApiConstants.headerUserAgent],
+        isNotEmpty,
+        reason: 'GitHub rejects requests with no User-Agent',
+      );
     });
 
     test('the User-Agent identifies this app', () {
@@ -49,12 +55,17 @@ void main() {
 
     test('Authorization is present if and only if a token was defined', () {
       final Map<String, String> headers = ApiConstants.defaultHeaders;
-      final bool hasAuthHeader =
-          headers.containsKey(ApiConstants.headerAuthorization);
+      final bool hasAuthHeader = headers.containsKey(
+        ApiConstants.headerAuthorization,
+      );
 
-      expect(hasAuthHeader, ApiConstants.hasToken,
-          reason: 'an empty Bearer token is a hard 401 -- worse than being '
-              'unauthenticated, so the header must be omitted entirely');
+      expect(
+        hasAuthHeader,
+        ApiConstants.hasToken,
+        reason:
+            'an empty Bearer token is a hard 401 -- worse than being '
+            'unauthenticated, so the header must be omitted entirely',
+      );
     });
 
     test('a defined token is sent as a Bearer credential', () {

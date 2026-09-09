@@ -82,14 +82,14 @@ class UserDetail extends Equatable {
 
   @override
   List<Object?> get props => <Object?>[
-        user,
-        bio,
-        company,
-        location,
-        blog,
-        publicRepos,
-        followers,
-        following,
-        createdAt,
-      ];
+    user,
+    bio,
+    company,
+    location,
+    blog,
+    publicRepos,
+    followers,
+    following,
+    createdAt,
+  ];
 }

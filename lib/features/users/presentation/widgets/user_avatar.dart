@@ -27,7 +27,7 @@ class UserAvatar extends StatelessWidget {
   /// tests install a synchronous stand-in here. Production never assigns it.
   @visibleForTesting
   static Widget Function(String url, String login, double radius)?
-      debugOverrideBuilder;
+  debugOverrideBuilder;
 
   /// Image URL.
   final String url;
@@ -79,10 +79,10 @@ class _Placeholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        width: radius * 2,
-        height: radius * 2,
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      );
+    width: radius * 2,
+    height: radius * 2,
+    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+  );
 }
 
 class _Initials extends StatelessWidget {
@@ -100,8 +100,8 @@ class _Initials extends StatelessWidget {
     final TextStyle? style = radius >= 40
         ? theme.textTheme.headlineMedium
         : radius >= 30
-            ? theme.textTheme.titleLarge
-            : theme.textTheme.titleMedium;
+        ? theme.textTheme.titleLarge
+        : theme.textTheme.titleMedium;
 
     return Container(
       width: radius * 2,

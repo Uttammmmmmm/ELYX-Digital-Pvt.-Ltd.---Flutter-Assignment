@@ -32,17 +32,19 @@ import '../../../../helpers/mocks.mocks.dart';
 import '../../../../helpers/widget_harness.dart';
 
 UserSummary _u(int id) => UserSummary(
-      id: id,
-      detailId: 'user$id',
-      handle: 'user$id',
-      avatarUrl: '',
-      profileUrl: 'https://github.com/user$id',
-      accountType: 'User',
-    );
+  id: id,
+  detailId: 'user$id',
+  handle: 'user$id',
+  avatarUrl: '',
+  profileUrl: 'https://github.com/user$id',
+  accountType: 'User',
+);
 
 /// Enough rows to overflow a phone viewport, so the list really scrolls.
-final List<UserSummary> _firstPage =
-    List<UserSummary>.generate(20, (int i) => _u(i + 1));
+final List<UserSummary> _firstPage = List<UserSummary>.generate(
+  20,
+  (int i) => _u(i + 1),
+);
 
 void main() {
   late MockUserRepository repository;
@@ -52,8 +54,9 @@ void main() {
     installFakeAvatars();
     repository = MockUserRepository();
     // Cold-start seed: no prior cache unless a test says otherwise.
-    when(repository.getCachedUsers())
-        .thenAnswer((_) async => const <UserSummary>[]);
+    when(
+      repository.getCachedUsers(),
+    ).thenAnswer((_) async => const <UserSummary>[]);
     connectivity = StreamController<bool>.broadcast();
   });
 
@@ -107,7 +110,9 @@ void main() {
       ),
     ).thenAnswer(
       (_) async => Left<Failure, PaginatedUsers>(
-        RateLimitFailure(resetAt: DateTime.now().add(const Duration(minutes: 30))),
+        RateLimitFailure(
+          resetAt: DateTime.now().add(const Duration(minutes: 30)),
+        ),
       ),
     );
   }
@@ -122,8 +127,7 @@ void main() {
       // Drive the bottom of the list repeatedly, exactly as a user bouncing
       // at the end would.
       for (int i = 0; i < 6; i++) {
-        await tester.drag(
-            find.byType(CustomScrollView), const Offset(0, -400));
+        await tester.drag(find.byType(CustomScrollView), const Offset(0, -400));
         await tester.pump(const Duration(milliseconds: 30));
       }
       await tester.pumpAndSettle();
@@ -149,8 +153,11 @@ void main() {
 
       expect(bloc.state.isRateLimited, isTrue);
       expect(bloc.state.canLoadMore, isFalse);
-      expect(bloc.state.allUsers, hasLength(20),
-          reason: 'the loaded rows must survive the failure');
+      expect(
+        bloc.state.allUsers,
+        hasLength(20),
+        reason: 'the loaded rows must survive the failure',
+      );
     });
 
     testWidgets('an explicit retry is also refused while the quota is spent', (
@@ -186,8 +193,11 @@ void main() {
       await tester.drag(find.byType(CustomScrollView), const Offset(0, -2000));
       await tester.pumpAndSettle();
 
-      expect(tester.takeException(), isNull,
-          reason: 'the footer must size itself, not inherit the row extent');
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: 'the footer must size itself, not inherit the row extent',
+      );
       expect(find.byKey(const Key('pagination_error')), findsOneWidget);
     });
 
@@ -218,8 +228,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('user_tile_20')), findsOneWidget);
-      expect(find.byKey(const Key('error_view')), findsNothing,
-          reason: 'a mid-list failure must not take over the whole screen');
+      expect(
+        find.byKey(const Key('error_view')),
+        findsNothing,
+        reason: 'a mid-list failure must not take over the whole screen',
+      );
     });
   });
 }

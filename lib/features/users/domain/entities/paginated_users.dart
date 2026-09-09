@@ -25,19 +25,18 @@ class PaginatedUsers extends Equatable {
   factory PaginatedUsers.fromBatch({
     required List<UserSummary> users,
     required Object? nextCursor,
-  }) =>
-      PaginatedUsers(
-        users: users,
-        nextCursor: nextCursor,
-        hasReachedEnd: nextCursor == null || users.isEmpty,
-      );
+  }) => PaginatedUsers(
+    users: users,
+    nextCursor: nextCursor,
+    hasReachedEnd: nextCursor == null || users.isEmpty,
+  );
 
   /// The terminal empty state: nothing loaded, nothing more to load.
   factory PaginatedUsers.empty() => const PaginatedUsers(
-        users: <UserSummary>[],
-        nextCursor: null,
-        hasReachedEnd: true,
-      );
+    users: <UserSummary>[],
+    nextCursor: null,
+    hasReachedEnd: true,
+  );
 
   /// The users in this batch, in the order the API returned them.
   final List<UserSummary> users;
@@ -59,12 +58,11 @@ class PaginatedUsers extends Equatable {
     Object? nextCursor,
     bool clearNextCursor = false,
     bool? hasReachedEnd,
-  }) =>
-      PaginatedUsers(
-        users: users ?? this.users,
-        nextCursor: clearNextCursor ? null : (nextCursor ?? this.nextCursor),
-        hasReachedEnd: hasReachedEnd ?? this.hasReachedEnd,
-      );
+  }) => PaginatedUsers(
+    users: users ?? this.users,
+    nextCursor: clearNextCursor ? null : (nextCursor ?? this.nextCursor),
+    hasReachedEnd: hasReachedEnd ?? this.hasReachedEnd,
+  );
 
   @override
   List<Object?> get props => <Object?>[users, nextCursor, hasReachedEnd];

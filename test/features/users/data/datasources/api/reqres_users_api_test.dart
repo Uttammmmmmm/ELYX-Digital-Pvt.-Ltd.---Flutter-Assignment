@@ -71,8 +71,11 @@ void main() {
       expect(request.path, '/users');
       expect(request.queryParameters['page'], 1);
       expect(request.queryParameters['per_page'], 10);
-      expect(request.queryParameters.containsKey('since'), isFalse,
-          reason: 'since belongs to the other source');
+      expect(
+        request.queryParameters.containsKey('since'),
+        isFalse,
+        reason: 'since belongs to the other source',
+      );
     });
 
     test('the cursor IS the page number, and advances by one', () async {
@@ -87,7 +90,9 @@ void main() {
     test('a supplied cursor becomes the page parameter', () async {
       final harness = build(
         (_) => FakeReply(
-            statusCode: 200, body: fixture('reqres_users_page2.json')),
+          statusCode: 200,
+          body: fixture('reqres_users_page2.json'),
+        ),
       );
 
       await harness.api.fetchUsers(cursor: 2);
@@ -95,18 +100,22 @@ void main() {
       expect(harness.adapter.requests.single.queryParameters['page'], 2);
     });
 
-    test('the last page ends pagination, read from total_pages in the BODY',
-        () async {
-      final harness = build(
-        (_) => FakeReply(
-            statusCode: 200, body: fixture('reqres_users_page2.json')),
-      );
+    test(
+      'the last page ends pagination, read from total_pages in the BODY',
+      () async {
+        final harness = build(
+          (_) => FakeReply(
+            statusCode: 200,
+            body: fixture('reqres_users_page2.json'),
+          ),
+        );
 
-      final PaginatedUsers page = await harness.api.fetchUsers(cursor: 2);
+        final PaginatedUsers page = await harness.api.fetchUsers(cursor: 2);
 
-      expect(page.nextCursor, isNull, reason: 'page 2 of 2');
-      expect(page.hasReachedEnd, isTrue);
-    });
+        expect(page.nextCursor, isNull, reason: 'page 2 of 2');
+        expect(page.hasReachedEnd, isTrue);
+      },
+    );
 
     test('an empty data array is the end', () async {
       final harness = build(
@@ -124,30 +133,34 @@ void main() {
   });
 
   group('list parsing', () {
-    test('maps first_name/last_name/email/avatar onto the neutral entity',
-        () async {
-      final harness = build(page1);
+    test(
+      'maps first_name/last_name/email/avatar onto the neutral entity',
+      () async {
+        final harness = build(page1);
 
-      final PaginatedUsers page = await harness.api.fetchUsers();
+        final PaginatedUsers page = await harness.api.fetchUsers();
 
-      expect(page.users, hasLength(2));
-      final UserSummary first = page.users.first;
-      expect(first.id, 1);
-      expect(first.firstName, 'George');
-      expect(first.lastName, 'Bluth');
-      expect(first.displayName, 'George Bluth');
-      expect(first.email, 'george.bluth@reqres.in');
-      expect(first.avatarUrl, contains('reqres.in/img/faces'));
-    });
+        expect(page.users, hasLength(2));
+        final UserSummary first = page.users.first;
+        expect(first.id, 1);
+        expect(first.firstName, 'George');
+        expect(first.lastName, 'Bluth');
+        expect(first.displayName, 'George Bluth');
+        expect(first.email, 'george.bluth@reqres.in');
+        expect(first.avatarUrl, contains('reqres.in/img/faces'));
+      },
+    );
 
-    test('detailId is the numeric id -- reqres keys detail by id, not handle',
-        () async {
-      final harness = build(page1);
+    test(
+      'detailId is the numeric id -- reqres keys detail by id, not handle',
+      () async {
+        final harness = build(page1);
 
-      final PaginatedUsers page = await harness.api.fetchUsers();
+        final PaginatedUsers page = await harness.api.fetchUsers();
 
-      expect(page.users.first.detailId, '1');
-    });
+        expect(page.users.first.detailId, '1');
+      },
+    );
 
     test('leaves GitHub-only fields null rather than inventing them', () async {
       final harness = build(page1);
@@ -163,7 +176,8 @@ void main() {
       final harness = build(
         (_) => const FakeReply(
           statusCode: 200,
-          body: '{"page":1,"total_pages":1,'
+          body:
+              '{"page":1,"total_pages":1,'
               '"data":[{"id":1,"first_name":"A"},"junk",42,{"id":2}]}',
         ),
       );
@@ -181,7 +195,9 @@ void main() {
     test('unwraps the {"data": …} envelope', () async {
       final harness = build(
         (_) => FakeReply(
-            statusCode: 200, body: fixture('reqres_user_detail.json')),
+          statusCode: 200,
+          body: fixture('reqres_user_detail.json'),
+        ),
       );
 
       final UserDetail detail = await harness.api.fetchUserDetail('2');
@@ -192,20 +208,24 @@ void main() {
       expect(detail.hasEmail, isTrue);
     });
 
-    test('reports no stats, so the UI hides the row rather than showing zeros',
-        () async {
-      final harness = build(
-        (_) => FakeReply(
-            statusCode: 200, body: fixture('reqres_user_detail.json')),
-      );
+    test(
+      'reports no stats, so the UI hides the row rather than showing zeros',
+      () async {
+        final harness = build(
+          (_) => FakeReply(
+            statusCode: 200,
+            body: fixture('reqres_user_detail.json'),
+          ),
+        );
 
-      final UserDetail detail = await harness.api.fetchUserDetail('2');
+        final UserDetail detail = await harness.api.fetchUserDetail('2');
 
-      expect(detail.hasStats, isFalse);
-      expect(detail.publicRepos, isNull);
-      expect(detail.createdAt, isNull);
-      expect(detail.bio, isNull);
-    });
+        expect(detail.hasStats, isFalse);
+        expect(detail.publicRepos, isNull);
+        expect(detail.createdAt, isNull);
+        expect(detail.bio, isNull);
+      },
+    );
 
     test('a missing data envelope is a ServerException, not a crash', () async {
       final harness = build(
@@ -229,19 +249,21 @@ void main() {
       );
     });
 
-    test('a missing key 401 surfaces as a typed failure, not a parse error',
-        () async {
-      final harness = build(
-        (_) => const FakeReply(
-          statusCode: 401,
-          body: '{"error":"missing_api_key"}',
-        ),
-      );
+    test(
+      'a missing key 401 surfaces as a typed failure, not a parse error',
+      () async {
+        final harness = build(
+          (_) => const FakeReply(
+            statusCode: 401,
+            body: '{"error":"missing_api_key"}',
+          ),
+        );
 
-      await expectLater(
-        harness.api.fetchUsers(),
-        throwsA(isA<AppException>()),
-      );
-    });
+        await expectLater(
+          harness.api.fetchUsers(),
+          throwsA(isA<AppException>()),
+        );
+      },
+    );
   });
 }

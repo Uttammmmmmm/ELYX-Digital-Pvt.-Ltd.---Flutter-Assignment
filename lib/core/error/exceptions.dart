@@ -74,7 +74,7 @@ final class NotFoundException extends AppException {
   // call needed to pin statusCode to 404.
   // ignore: use_super_parameters
   const NotFoundException([String message = 'Resource not found'])
-      : super(message, statusCode: 404);
+    : super(message, statusCode: 404);
 }
 
 /// Local persistence failed, or the cache was empty when it was required.

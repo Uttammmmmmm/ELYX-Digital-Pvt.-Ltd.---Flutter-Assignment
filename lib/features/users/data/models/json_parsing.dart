@@ -19,8 +19,7 @@ String asString(
   Map<String, dynamic> json,
   String key, {
   String fallback = '',
-}) =>
-    asOptionalString(json, key) ?? fallback;
+}) => asOptionalString(json, key) ?? fallback;
 
 /// Reads [key] as an int, tolerating a numeric string.
 int asInt(Map<String, dynamic> json, String key, {int fallback = 0}) {

@@ -10,7 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 const UserSummary _summary = UserSummary(
   id: 1,
   detailId: 'mojombo',
-      handle: 'mojombo',
+  handle: 'mojombo',
   avatarUrl: 'a',
   profileUrl: 'h',
   accountType: 'User',

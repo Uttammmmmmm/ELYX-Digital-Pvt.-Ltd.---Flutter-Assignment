@@ -27,10 +27,10 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
     required FilterUsers filterUsers,
     required UserRepository repository,
     Duration searchDebounce = const Duration(milliseconds: 300),
-  })  : _getUsers = getUsers,
-        _filterUsers = filterUsers,
-        _repository = repository,
-        super(const UsersState()) {
+  }) : _getUsers = getUsers,
+       _filterUsers = filterUsers,
+       _repository = repository,
+       super(const UsersState()) {
     on<UsersFetched>(_onFetched);
 
     // droppable(): a fast flick crosses the threshold several times and emits
@@ -68,10 +68,7 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
 
   // -- Handlers ------------------------------------------------------------
 
-  Future<void> _onFetched(
-    UsersFetched event,
-    Emitter<UsersState> emit,
-  ) async {
+  Future<void> _onFetched(UsersFetched event, Emitter<UsersState> emit) async {
     if (state.status != UsersStatus.initial) return;
 
     emit(state.copyWith(status: UsersStatus.loading, clearFailure: true));
@@ -144,13 +141,9 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
   void _onSearchQueryChanged(
     UsersSearchQueryChanged event,
     Emitter<UsersState> emit,
-  ) =>
-      emit(_filtered(state, event.query));
+  ) => emit(_filtered(state, event.query));
 
-  void _onSearchCleared(
-    UsersSearchCleared event,
-    Emitter<UsersState> emit,
-  ) =>
+  void _onSearchCleared(UsersSearchCleared event, Emitter<UsersState> emit) =>
       emit(_filtered(state, ''));
 
   // -- Internals -----------------------------------------------------------
@@ -162,11 +155,11 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
   /// `allUsers` itself would destroy the cursor sequence and break scrolling
   /// the moment the query was cleared.
   UsersState _filtered(UsersState from, String query) => from.copyWith(
-        searchQuery: query,
-        visibleUsers: _filterUsers(
-          FilterUsersParams(users: from.allUsers, query: query),
-        ),
-      );
+    searchQuery: query,
+    visibleUsers: _filterUsers(
+      FilterUsersParams(users: from.allUsers, query: query),
+    ),
+  );
 
   /// Fetches one page and folds the result into state.
   Future<void> _load(
@@ -200,13 +193,12 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
   /// `allUsers` and `nextCursor` are deliberately left untouched, so a retry
   /// resumes from the same cursor instead of restarting the list.
   UsersState _withFailure(Failure failure) => state.copyWith(
-        status: UsersStatus.failure,
-        failure: failure,
-        // Constraint (d): kept in state so the UI can run a countdown, and
-        // kept separately from `failure` so it survives the next retry.
-        rateLimitResetAt:
-            failure is RateLimitFailure ? failure.resetAt : null,
-      );
+    status: UsersStatus.failure,
+    failure: failure,
+    // Constraint (d): kept in state so the UI can run a countdown, and
+    // kept separately from `failure` so it survives the next retry.
+    rateLimitResetAt: failure is RateLimitFailure ? failure.resetAt : null,
+  );
 
   /// Merges a page into state and re-applies the active search.
   UsersState _withPage(PaginatedUsers page, {required bool replace}) {

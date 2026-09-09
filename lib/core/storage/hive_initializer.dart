@@ -43,8 +43,9 @@ abstract final class HiveInitializer {
 
     return HiveBoxes(
       pages: await _openBoxSafely<CachedPageModel>(CacheConstants.usersPageBox),
-      details:
-          await _openBoxSafely<UserDetailModel>(CacheConstants.userDetailBox),
+      details: await _openBoxSafely<UserDetailModel>(
+        CacheConstants.userDetailBox,
+      ),
     );
   }
 
@@ -87,8 +88,10 @@ abstract final class HiveInitializer {
     );
     await Hive.deleteBoxFromDisk(CacheConstants.usersPageBox);
     await Hive.deleteBoxFromDisk(CacheConstants.userDetailBox);
-    await meta.put(CacheConstants.schemaVersionKey,
-        CacheConstants.schemaVersion);
+    await meta.put(
+      CacheConstants.schemaVersionKey,
+      CacheConstants.schemaVersion,
+    );
   }
 
   /// Opens [name], recovering by deleting the box if it cannot be read.

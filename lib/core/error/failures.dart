@@ -57,7 +57,8 @@ final class RateLimitFailure extends Failure {
   const RateLimitFailure({
     required this.resetAt,
     this.isSecondary = false,
-    String message = 'GitHub API rate limit reached. Unauthenticated '
+    String message =
+        'GitHub API rate limit reached. Unauthenticated '
         'requests are capped at 60 per hour.',
   }) : super(message);
 
@@ -96,9 +97,7 @@ final class ValidationFailure extends Failure {
 
 /// Reading or writing the local cache failed, or nothing was cached.
 final class CacheFailure extends Failure {
-  const CacheFailure([
-    super.message = 'No saved data available offline.',
-  ]);
+  const CacheFailure([super.message = 'No saved data available offline.']);
 }
 
 /// Translates a data-layer [AppException] into a domain [Failure].
@@ -107,11 +106,11 @@ final class CacheFailure extends Failure {
 /// once. The switch is exhaustive over the sealed [AppException] hierarchy, so
 /// adding an exception without a failure will not compile.
 Failure failureFromException(AppException exception) => switch (exception) {
-      RateLimitException(:final DateTime resetAt, :final bool isSecondary) =>
-        RateLimitFailure(resetAt: resetAt, isSecondary: isSecondary),
-      NotFoundException() => const NotFoundFailure(),
-      NetworkException() => const NetworkFailure(),
-      TimeoutException() => const TimeoutFailure(),
-      CacheException() => const CacheFailure(),
-      ServerException() => const ServerFailure(),
-    };
+  RateLimitException(:final DateTime resetAt, :final bool isSecondary) =>
+    RateLimitFailure(resetAt: resetAt, isSecondary: isSecondary),
+  NotFoundException() => const NotFoundFailure(),
+  NetworkException() => const NetworkFailure(),
+  TimeoutException() => const TimeoutFailure(),
+  CacheException() => const CacheFailure(),
+  ServerException() => const ServerFailure(),
+};

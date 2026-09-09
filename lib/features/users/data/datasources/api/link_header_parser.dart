@@ -1,7 +1,6 @@
 /// RFC 5988 `Link` header parsing for GitHub's cursor pagination.
 library;
 
-
 /// Extracts pagination cursors from GitHub's `Link` response header.
 ///
 /// Lives under the GitHub implementation because it is GitHub-specific:
@@ -56,8 +55,9 @@ class LinkHeaderParser {
       final RegExpMatch? rel = _rel.firstMatch(params);
       if (rel == null) continue;
 
-      final String? name =
-          (rel.group(1) ?? rel.group(2) ?? rel.group(3))?.trim().toLowerCase();
+      final String? name = (rel.group(1) ?? rel.group(2) ?? rel.group(3))
+          ?.trim()
+          .toLowerCase();
       // A rel may legally hold several space-separated names; index them all.
       if (name == null || name.isEmpty) continue;
       for (final String part in name.split(RegExp(r'\s+'))) {

@@ -36,8 +36,10 @@ bool isRateLimitExhausted(Headers? headers) =>
 DateTime rateLimitResetAt(Headers? headers, {DateTime? now}) {
   final DateTime base = now ?? DateTime.now();
 
-  final int? resetEpoch =
-      readIntHeader(headers, ApiConstants.headerRateLimitReset);
+  final int? resetEpoch = readIntHeader(
+    headers,
+    ApiConstants.headerRateLimitReset,
+  );
   if (resetEpoch != null) {
     return DateTime.fromMillisecondsSinceEpoch(resetEpoch * 1000);
   }

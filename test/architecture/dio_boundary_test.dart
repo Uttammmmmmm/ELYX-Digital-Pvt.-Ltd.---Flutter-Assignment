@@ -35,10 +35,9 @@ void main() {
       final String relative = entity.path.replaceAll(r'\', '/');
       if (kDioAllowlist.contains(relative)) continue;
 
-      final bool importsDio = entity
-          .readAsLinesSync()
-          .any((String l) => RegExp(r'''^\s*import\s+['"]package:dio/''')
-              .hasMatch(l));
+      final bool importsDio = entity.readAsLinesSync().any(
+        (String l) => RegExp(r'''^\s*import\s+['"]package:dio/''').hasMatch(l),
+      );
 
       if (importsDio) offenders.add(relative);
     }
@@ -46,7 +45,8 @@ void main() {
     expect(
       offenders,
       isEmpty,
-      reason: 'These files import package:dio outside the allowlist:\n'
+      reason:
+          'These files import package:dio outside the allowlist:\n'
           '${offenders.join('\n')}\n\n'
           'Depend on DioClient/ApiResponse instead, or justify an allowlist '
           'entry.',

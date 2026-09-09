@@ -108,8 +108,9 @@ class _TypeBadge extends StatelessWidget {
         type,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: theme.textTheme.labelSmall
-            ?.copyWith(color: theme.colorScheme.onSecondaryContainer),
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.onSecondaryContainer,
+        ),
       ),
     );
   }

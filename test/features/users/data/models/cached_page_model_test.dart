@@ -13,24 +13,26 @@ void main() {
     final DateTime now = DateTime.utc(2026, 9, 9, 12);
 
     CachedPageModel at(Duration age) => CachedPageModel(
-          users: <UserSummaryModel>[user],
-          nextCursor: 2,
-          requestedCursor: 1,
-          cachedAt: now.subtract(age),
-        );
+      users: <UserSummaryModel>[user],
+      nextCursor: 2,
+      requestedCursor: 1,
+      cachedAt: now.subtract(age),
+    );
 
     test('is fresh inside the TTL', () {
       expect(
-        at(const Duration(minutes: 5))
-            .isStale(const Duration(minutes: 15), now: now),
+        at(
+          const Duration(minutes: 5),
+        ).isStale(const Duration(minutes: 15), now: now),
         isFalse,
       );
     });
 
     test('is stale past the TTL', () {
       expect(
-        at(const Duration(minutes: 16))
-            .isStale(const Duration(minutes: 15), now: now),
+        at(
+          const Duration(minutes: 16),
+        ).isStale(const Duration(minutes: 15), now: now),
         isTrue,
       );
     });
@@ -76,8 +78,11 @@ void main() {
         requestedCursor: 1,
       );
 
-      expect(cached.requestedCursor, 1,
-          reason: 'needed to rebuild order in getAllCachedUsers');
+      expect(
+        cached.requestedCursor,
+        1,
+        reason: 'needed to rebuild order in getAllCachedUsers',
+      );
       expect(cached.nextCursor, 2);
       expect(cached.users.single.id, 1);
     });

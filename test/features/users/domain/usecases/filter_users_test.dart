@@ -3,13 +3,13 @@ import 'package:elyx_digital_assignment/features/users/domain/usecases/filter_us
 import 'package:flutter_test/flutter_test.dart';
 
 UserSummary _u(int id, String login) => UserSummary(
-      id: id,
-      detailId: login,
-      handle: login,
-      avatarUrl: 'https://avatars.githubusercontent.com/u/$id?v=4',
-      profileUrl: 'https://github.com/$login',
-      accountType: 'User',
-    );
+  id: id,
+  detailId: login,
+  handle: login,
+  avatarUrl: 'https://avatars.githubusercontent.com/u/$id?v=4',
+  profileUrl: 'https://github.com/$login',
+  accountType: 'User',
+);
 
 void main() {
   const FilterUsers filter = FilterUsers();
@@ -50,10 +50,12 @@ void main() {
       expect(run('mo   jo'), run('mo jo'));
     });
 
-    test('a multi-word query matches nothing -- logins cannot contain spaces',
-        () {
-      expect(run('mojo mbo'), isEmpty);
-    });
+    test(
+      'a multi-word query matches nothing -- logins cannot contain spaces',
+      () {
+        expect(run('mojo mbo'), isEmpty);
+      },
+    );
   });
 
   group('casing', () {

@@ -50,8 +50,8 @@ class UserLocalDataSourceImpl implements UserLocalDataSource {
   const UserLocalDataSourceImpl({
     required Box<CachedPageModel> pagesBox,
     required Box<UserDetailModel> detailsBox,
-  })  : _pages = pagesBox,
-        _details = detailsBox;
+  }) : _pages = pagesBox,
+       _details = detailsBox;
 
   final Box<CachedPageModel> _pages;
   final Box<UserDetailModel> _details;
@@ -83,7 +83,9 @@ class UserLocalDataSourceImpl implements UserLocalDataSource {
       );
       await _evictDetails();
     } catch (e) {
-      throw CacheException('Failed to cache profile ${detail.user.detailId}: $e');
+      throw CacheException(
+        'Failed to cache profile ${detail.user.detailId}: $e',
+      );
     }
   }
 
@@ -99,8 +101,10 @@ class UserLocalDataSourceImpl implements UserLocalDataSource {
     // each batch reconstructs the true order; the first batch (null cursor)
     // sorts first because -1 precedes every real cursor value.
     final List<CachedPageModel> pages = _pages.values.toList()
-      ..sort((CachedPageModel a, CachedPageModel b) =>
-          _sortKey(a.requestedCursor).compareTo(_sortKey(b.requestedCursor)));
+      ..sort(
+        (CachedPageModel a, CachedPageModel b) =>
+            _sortKey(a.requestedCursor).compareTo(_sortKey(b.requestedCursor)),
+      );
 
     // Deduplicate by id: overlapping batches are normal after a refresh, and
     // a duplicate would break a keyed list and inflate the search corpus.
@@ -157,8 +161,8 @@ class UserLocalDataSourceImpl implements UserLocalDataSource {
   /// Orders cursors of either shape. Ints sort naturally; anything else falls
   /// back to its string form, which at least keeps the order stable.
   static Comparable<Object> _sortKey(Object? cursor) => switch (cursor) {
-        null => -1,
-        final int i => i,
-        final Object o => o.toString(),
-      };
+    null => -1,
+    final int i => i,
+    final Object o => o.toString(),
+  };
 }

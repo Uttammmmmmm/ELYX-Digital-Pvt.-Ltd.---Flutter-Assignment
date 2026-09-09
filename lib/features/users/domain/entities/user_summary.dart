@@ -83,14 +83,14 @@ class UserSummary extends Equatable {
 
   @override
   List<Object?> get props => <Object?>[
-        id,
-        detailId,
-        avatarUrl,
-        handle,
-        firstName,
-        lastName,
-        email,
-        profileUrl,
-        accountType,
-      ];
+    id,
+    detailId,
+    avatarUrl,
+    handle,
+    firstName,
+    lastName,
+    email,
+    profileUrl,
+    accountType,
+  ];
 }

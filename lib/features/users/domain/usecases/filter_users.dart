@@ -53,12 +53,14 @@ class FilterUsers implements SyncUseCase<List<UserSummary>, FilterUsersParams> {
     // rebuild against a new-but-equal list.
     if (needle.isEmpty) return params.users;
 
-    return params.users.where((UserSummary user) {
-      if (_normalise(user.displayName).contains(needle)) return true;
+    return params.users
+        .where((UserSummary user) {
+          if (_normalise(user.displayName).contains(needle)) return true;
 
-      final String? email = user.email;
-      return email != null && _normalise(email).contains(needle);
-    }).toList(growable: false);
+          final String? email = user.email;
+          return email != null && _normalise(email).contains(needle);
+        })
+        .toList(growable: false);
   }
 
   /// Trim, collapse internal whitespace runs, lowercase.

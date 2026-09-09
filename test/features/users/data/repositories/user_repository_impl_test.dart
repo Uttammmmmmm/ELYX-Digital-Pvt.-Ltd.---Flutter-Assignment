@@ -26,13 +26,13 @@ void main() {
   );
 
   CachedPageModel cachedPage(Duration age) => CachedPageModel(
-        users: <UserSummaryModel>[
-          UserSummaryModel.fromEntity(reqresUser(1, first: 'Cached')),
-        ],
-        nextCursor: 5,
-        requestedCursor: null,
-        cachedAt: DateTime.now().subtract(age),
-      );
+    users: <UserSummaryModel>[
+      UserSummaryModel.fromEntity(reqresUser(1, first: 'Cached')),
+    ],
+    nextCursor: 5,
+    requestedCursor: null,
+    cachedAt: DateTime.now().subtract(age),
+  );
 
   const Duration fresh = Duration(minutes: 1);
   const Duration stale = Duration(hours: 5);
@@ -52,14 +52,14 @@ void main() {
   });
 
   void stubRemote([PaginatedUsers? page]) => when(
-        api.fetchUsers(cursor: anyNamed('cursor'), perPage: anyNamed('perPage')),
-      ).thenAnswer((_) async => page ?? remotePage);
+    api.fetchUsers(cursor: anyNamed('cursor'), perPage: anyNamed('perPage')),
+  ).thenAnswer((_) async => page ?? remotePage);
 
   List<String> namesOf(Either<Failure, PaginatedUsers> r) => r.fold(
-        (Failure f) => fail('expected Right, got $f'),
-        (PaginatedUsers p) =>
-            p.users.map((UserSummary u) => u.displayName).toList(),
-      );
+    (Failure f) => fail('expected Right, got $f'),
+    (PaginatedUsers p) =>
+        p.users.map((UserSummary u) => u.displayName).toList(),
+  );
 
   group('branch 1 -- forceRefresh', () {
     test('goes remote even when the cache is fresh', () async {
@@ -67,8 +67,9 @@ void main() {
       when(network.isConnected).thenAnswer((_) async => true);
       stubRemote();
 
-      expect(namesOf(await repository.getUsers(forceRefresh: true)),
-          <String>['Remote User']);
+      expect(namesOf(await repository.getUsers(forceRefresh: true)), <String>[
+        'Remote User',
+      ]);
     });
 
     // REGRESSION (B2). Commit 6eeac93 removed this call AND its test in the
@@ -97,31 +98,40 @@ void main() {
     // pre-refresh entry. Without `clearUsersPages()` this fails -- the cached
     // page 2 is inside its TTL, so it is returned and the remote is never
     // called.
-    test('a later page after a refresh goes REMOTE, not to a pre-refresh entry',
-        () async {
-      // Simulate the box being emptied by the clear.
-      bool cleared = false;
-      when(local.clearUsersPages()).thenAnswer((_) async => cleared = true);
-      when(local.getCachedUsersPage(2))
-          .thenAnswer((_) => cleared ? null : cachedPage(fresh));
-      when(local.getCachedUsersPage(null)).thenReturn(null);
-      when(network.isConnected).thenAnswer((_) async => true);
-      stubRemote();
+    test(
+      'a later page after a refresh goes REMOTE, not to a pre-refresh entry',
+      () async {
+        // Simulate the box being emptied by the clear.
+        bool cleared = false;
+        when(local.clearUsersPages()).thenAnswer((_) async => cleared = true);
+        when(
+          local.getCachedUsersPage(2),
+        ).thenAnswer((_) => cleared ? null : cachedPage(fresh));
+        when(local.getCachedUsersPage(null)).thenReturn(null);
+        when(network.isConnected).thenAnswer((_) async => true);
+        stubRemote();
 
-      await repository.getUsers(forceRefresh: true);
-      final Either<Failure, PaginatedUsers> second =
-          await repository.getUsers(cursor: 2);
+        await repository.getUsers(forceRefresh: true);
+        final Either<Failure, PaginatedUsers> second = await repository
+            .getUsers(cursor: 2);
 
-      expect(namesOf(second), <String>['Remote User']);
-      verify(api.fetchUsers(cursor: 2, perPage: anyNamed('perPage'))).called(1);
-    });
+        expect(namesOf(second), <String>['Remote User']);
+        verify(
+          api.fetchUsers(cursor: 2, perPage: anyNamed('perPage')),
+        ).called(1);
+      },
+    );
 
     test('falls back to stale cache when the forced fetch fails', () async {
       when(local.clearUsersPages()).thenAnswer((_) async {});
       when(local.getCachedUsersPage(null)).thenReturn(cachedPage(stale));
       when(network.isConnected).thenAnswer((_) async => true);
-      when(api.fetchUsers(cursor: anyNamed('cursor'), perPage: anyNamed('perPage')))
-          .thenThrow(const ServerException('boom', statusCode: 500));
+      when(
+        api.fetchUsers(
+          cursor: anyNamed('cursor'),
+          perPage: anyNamed('perPage'),
+        ),
+      ).thenThrow(const ServerException('boom', statusCode: 500));
 
       // The clear already happened, so there is nothing to fall back to and
       // the failure is surfaced -- which is correct: a refresh that fails
@@ -144,8 +154,9 @@ void main() {
     setUp(() => when(network.isConnected).thenAnswer((_) async => false));
 
     test('serves cached data at ANY age rather than failing', () async {
-      when(local.getCachedUsersPage(null))
-          .thenReturn(cachedPage(const Duration(days: 30)));
+      when(
+        local.getCachedUsersPage(null),
+      ).thenReturn(cachedPage(const Duration(days: 30)));
 
       expect(namesOf(await repository.getUsers()), <String>['Cached Last1']);
       verifyZeroInteractions(api);
@@ -154,8 +165,10 @@ void main() {
     test('only fails when there is nothing usable on disk', () async {
       when(local.getCachedUsersPage(null)).thenReturn(null);
 
-      expect(await repository.getUsers(),
-          const Left<Failure, PaginatedUsers>(NetworkFailure()));
+      expect(
+        await repository.getUsers(),
+        const Left<Failure, PaginatedUsers>(NetworkFailure()),
+      );
     });
   });
 
@@ -174,35 +187,57 @@ void main() {
 
     test('a spent rate limit degrades to stale cache', () async {
       when(local.getCachedUsersPage(null)).thenReturn(cachedPage(stale));
-      when(api.fetchUsers(cursor: anyNamed('cursor'), perPage: anyNamed('perPage')))
-          .thenThrow(RateLimitException(resetAt: DateTime.now(), statusCode: 429));
+      when(
+        api.fetchUsers(
+          cursor: anyNamed('cursor'),
+          perPage: anyNamed('perPage'),
+        ),
+      ).thenThrow(RateLimitException(resetAt: DateTime.now(), statusCode: 429));
 
       expect(namesOf(await repository.getUsers()), <String>['Cached Last1']);
     });
 
-    test('surfaces RateLimitFailure with resetAt when nothing is cached',
-        () async {
-      final DateTime resetAt = DateTime.now().add(const Duration(minutes: 42));
-      when(local.getCachedUsersPage(null)).thenReturn(null);
-      when(api.fetchUsers(cursor: anyNamed('cursor'), perPage: anyNamed('perPage')))
-          .thenThrow(RateLimitException(resetAt: resetAt, statusCode: 429));
+    test(
+      'surfaces RateLimitFailure with resetAt when nothing is cached',
+      () async {
+        final DateTime resetAt = DateTime.now().add(
+          const Duration(minutes: 42),
+        );
+        when(local.getCachedUsersPage(null)).thenReturn(null);
+        when(
+          api.fetchUsers(
+            cursor: anyNamed('cursor'),
+            perPage: anyNamed('perPage'),
+          ),
+        ).thenThrow(RateLimitException(resetAt: resetAt, statusCode: 429));
 
-      final Failure failure = (await repository.getUsers())
-          .fold((Failure f) => f, (_) => fail('expected Left'));
+        final Failure failure = (await repository.getUsers()).fold(
+          (Failure f) => f,
+          (_) => fail('expected Left'),
+        );
 
-      expect(failure, isA<RateLimitFailure>());
-      expect((failure as RateLimitFailure).resetAt, resetAt);
-    });
+        expect(failure, isA<RateLimitFailure>());
+        expect((failure as RateLimitFailure).resetAt, resetAt);
+      },
+    );
 
-    test('an unexpected non-AppException never escapes the data layer',
-        () async {
-      when(local.getCachedUsersPage(null)).thenReturn(null);
-      when(api.fetchUsers(cursor: anyNamed('cursor'), perPage: anyNamed('perPage')))
-          .thenThrow(StateError('unmapped'));
+    test(
+      'an unexpected non-AppException never escapes the data layer',
+      () async {
+        when(local.getCachedUsersPage(null)).thenReturn(null);
+        when(
+          api.fetchUsers(
+            cursor: anyNamed('cursor'),
+            perPage: anyNamed('perPage'),
+          ),
+        ).thenThrow(StateError('unmapped'));
 
-      expect((await repository.getUsers()).fold((Failure f) => f, (_) => null),
-          isA<ServerFailure>());
-    });
+        expect(
+          (await repository.getUsers()).fold((Failure f) => f, (_) => null),
+          isA<ServerFailure>(),
+        );
+      },
+    );
   });
 
   group('branch 6 -- remote success', () {
@@ -222,11 +257,16 @@ void main() {
     test('is a successful end-of-list, NOT a failure', () async {
       when(local.getCachedUsersPage(3)).thenReturn(null);
       when(network.isConnected).thenAnswer((_) async => true);
-      stubRemote(PaginatedUsers.fromBatch(
-          users: const <UserSummary>[], nextCursor: null));
+      stubRemote(
+        PaginatedUsers.fromBatch(
+          users: const <UserSummary>[],
+          nextCursor: null,
+        ),
+      );
 
-      final Either<Failure, PaginatedUsers> result =
-          await repository.getUsers(cursor: 3);
+      final Either<Failure, PaginatedUsers> result = await repository.getUsers(
+        cursor: 3,
+      );
 
       expect(result.isRight(), isTrue);
       result.fold((_) => fail('expected Right'), (PaginatedUsers p) {
@@ -257,8 +297,9 @@ void main() {
       when(api.fetchUserDetail('ghost')).thenThrow(const NotFoundException());
 
       expect(
-        (await repository.getUserDetail('ghost'))
-            .fold((Failure f) => f, (_) => null),
+        (await repository.getUserDetail(
+          'ghost',
+        )).fold((Failure f) => f, (_) => null),
         isA<NotFoundFailure>(),
       );
     });
@@ -271,8 +312,9 @@ void main() {
         ),
       );
       when(network.isConnected).thenAnswer((_) async => true);
-      when(api.fetchUserDetail('1'))
-          .thenThrow(const ServerException('boom', statusCode: 500));
+      when(
+        api.fetchUserDetail('1'),
+      ).thenThrow(const ServerException('boom', statusCode: 500));
 
       expect((await repository.getUserDetail('1')).isRight(), isTrue);
     });
@@ -280,17 +322,20 @@ void main() {
 
   group('getCachedUsers', () {
     test('exposes the whole cached corpus for the cold-start seed', () async {
-      when(local.getAllCachedUsers())
-          .thenReturn(<UserSummary>[reqresUser(1), reqresUser(2)]);
+      when(
+        local.getAllCachedUsers(),
+      ).thenReturn(<UserSummary>[reqresUser(1), reqresUser(2)]);
 
       expect(await repository.getCachedUsers(), hasLength(2));
     });
 
-    test('degrades to empty rather than throwing out of a cold start',
-        () async {
-      when(local.getAllCachedUsers()).thenThrow(const CacheException());
+    test(
+      'degrades to empty rather than throwing out of a cold start',
+      () async {
+        when(local.getAllCachedUsers()).thenThrow(const CacheException());
 
-      expect(await repository.getCachedUsers(), isEmpty);
-    });
+        expect(await repository.getCachedUsers(), isEmpty);
+      },
+    );
   });
 }

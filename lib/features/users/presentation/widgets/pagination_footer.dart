@@ -72,8 +72,9 @@ class PaginationFooter extends StatelessWidget {
               Text(
                 errorMessage ?? UsersStrings.couldNotLoadMore,
                 textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.error),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.error,
+                ),
               ),
               const SizedBox(height: AppSpacing.sm),
               OutlinedButton.icon(
@@ -93,8 +94,9 @@ class PaginationFooter extends StatelessWidget {
           child: Center(
             child: Text(
               UsersStrings.endOfList,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.outline),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
             ),
           ),
         );

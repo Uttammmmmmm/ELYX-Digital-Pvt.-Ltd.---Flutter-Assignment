@@ -16,8 +16,8 @@ import 'users_api.dart';
 /// the detail endpoint. Everything source-specific stops at this file.
 class ReqresUsersApi implements UsersApi {
   const ReqresUsersApi({required DioClient client, required String apiKey})
-      : _client = client,
-        _apiKey = apiKey;
+    : _client = client,
+      _apiKey = apiKey;
 
   /// Injected at build time; see [defaultApiKey].
   static const String apiKeyDefine = 'REQRES_API_KEY';
@@ -42,12 +42,12 @@ class ReqresUsersApi implements UsersApi {
 
   @override
   Map<String, String> get headers => <String, String>{
-        'Accept': 'application/json',
-        // REQUIRED. A missing key is a 401, not a rate limit. DioClient is
-        // built from ApiSourceConfig, which carries the same header; this
-        // getter exists so the API can describe itself in isolation.
-        'x-api-key': _apiKey,
-      };
+    'Accept': 'application/json',
+    // REQUIRED. A missing key is a 401, not a rate limit. DioClient is
+    // built from ApiSourceConfig, which carries the same header; this
+    // getter exists so the API can describe itself in isolation.
+    'x-api-key': _apiKey,
+  };
 
   @override
   Future<PaginatedUsers> fetchUsers({Object? cursor, int perPage = 10}) async {
@@ -55,16 +55,17 @@ class ReqresUsersApi implements UsersApi {
     // cursor from the other implementation leaked through a stale cache.
     final int page = cursor is int ? cursor : 1;
 
-    final ApiResponse<Map<String, dynamic>> response =
-        await _client.get<Map<String, dynamic>>(
-      _usersPath,
-      queryParameters: <String, dynamic>{
-        _paramPerPage: perPage,
-        _paramPage: page,
-      },
-    );
+    final ApiResponse<Map<String, dynamic>> response = await _client
+        .get<Map<String, dynamic>>(
+          _usersPath,
+          queryParameters: <String, dynamic>{
+            _paramPerPage: perPage,
+            _paramPage: page,
+          },
+        );
 
-    final Map<String, dynamic> body = response.data ?? const <String, dynamic>{};
+    final Map<String, dynamic> body =
+        response.data ?? const <String, dynamic>{};
     final Object? rawData = body['data'];
 
     final List<UserSummary> users = rawData is List
@@ -72,9 +73,9 @@ class ReqresUsersApi implements UsersApi {
         // handles objects that are merely wrong inside. One malformed record
         // must never discard the whole batch.
         ? rawData
-            .whereType<Map<String, dynamic>>()
-            .map(_userFromJson)
-            .toList(growable: false)
+              .whereType<Map<String, dynamic>>()
+              .map(_userFromJson)
+              .toList(growable: false)
         : const <UserSummary>[];
 
     // Page count comes from the BODY here -- there is no Link header. This is
@@ -91,8 +92,8 @@ class ReqresUsersApi implements UsersApi {
 
   @override
   Future<UserDetail> fetchUserDetail(String id) async {
-    final ApiResponse<Map<String, dynamic>> response =
-        await _client.get<Map<String, dynamic>>('$_usersPath/$id');
+    final ApiResponse<Map<String, dynamic>> response = await _client
+        .get<Map<String, dynamic>>('$_usersPath/$id');
 
     final Map<String, dynamic>? body = response.data;
     // The detail endpoint wraps its payload: {"data": {...}, "support": {...}}

@@ -30,13 +30,13 @@ import '../../../../helpers/mocks.mocks.dart';
 import '../../../../helpers/widget_harness.dart';
 
 UserSummary _u(int id, String login) => UserSummary(
-      id: id,
-      detailId: login,
-      handle: login,
-      avatarUrl: 'https://avatars.githubusercontent.com/u/$id?v=4',
-      profileUrl: 'https://github.com/$login',
-      accountType: 'User',
-    );
+  id: id,
+  detailId: login,
+  handle: login,
+  avatarUrl: 'https://avatars.githubusercontent.com/u/$id?v=4',
+  profileUrl: 'https://github.com/$login',
+  accountType: 'User',
+);
 
 final List<UserSummary> _users = <UserSummary>[
   _u(1, 'mojombo'),
@@ -51,8 +51,9 @@ void main() {
     installFakeAvatars();
     repository = MockUserRepository();
     // Cold-start seed: no prior cache unless a test says otherwise.
-    when(repository.getCachedUsers())
-        .thenAnswer((_) async => const <UserSummary>[]);
+    when(
+      repository.getCachedUsers(),
+    ).thenAnswer((_) async => const <UserSummary>[]);
     connectivity = StreamController<bool>.broadcast();
   });
 
@@ -62,13 +63,14 @@ void main() {
   });
 
   UsersBloc buildBloc() => UsersBloc(
-        getUsers: GetUsers(repository),
-        filterUsers: const FilterUsers(),
-        repository: repository,
-        searchDebounce: Duration.zero,
-      );
+    getUsers: GetUsers(repository),
+    filterUsers: const FilterUsers(),
+    repository: repository,
+    searchDebounce: Duration.zero,
+  );
 
-  void stubSuccess({List<UserSummary>? users, Object? nextCursor}) => when(
+  void stubSuccess({List<UserSummary>? users, Object? nextCursor}) =>
+      when(
         repository.getUsers(
           cursor: anyNamed('cursor'),
           perPage: anyNamed('perPage'),
@@ -84,12 +86,12 @@ void main() {
       );
 
   void stubFailure(Failure failure) => when(
-        repository.getUsers(
-          cursor: anyNamed('cursor'),
-          perPage: anyNamed('perPage'),
-          forceRefresh: anyNamed('forceRefresh'),
-        ),
-      ).thenAnswer((_) async => Left<Failure, PaginatedUsers>(failure));
+    repository.getUsers(
+      cursor: anyNamed('cursor'),
+      perPage: anyNamed('perPage'),
+      forceRefresh: anyNamed('forceRefresh'),
+    ),
+  ).thenAnswer((_) async => Left<Failure, PaginatedUsers>(failure));
 
   /// Pumps the view at [size].
   ///
@@ -138,7 +140,10 @@ void main() {
       stubSuccess(nextCursor: 2);
       await pump(tester);
 
-      expect(find.byKey(const PageStorageKey<String>('users_list')), findsOneWidget);
+      expect(
+        find.byKey(const PageStorageKey<String>('users_list')),
+        findsOneWidget,
+      );
       expect(find.byType(UserListTile), findsNWidgets(2));
       expect(find.byKey(const Key('user_tile_1')), findsOneWidget);
       expect(find.byKey(const Key('user_tile_2')), findsOneWidget);
@@ -161,7 +166,9 @@ void main() {
       await pump(tester);
 
       await tester.enterText(
-          find.byKey(const Key('user_search_field')), 'mojo');
+        find.byKey(const Key('user_search_field')),
+        'mojo',
+      );
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('user_tile_1')), findsOneWidget);
@@ -175,7 +182,9 @@ void main() {
       await pump(tester);
 
       await tester.enterText(
-          find.byKey(const Key('user_search_field')), 'zzzz');
+        find.byKey(const Key('user_search_field')),
+        'zzzz',
+      );
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('no_search_results_view')), findsOneWidget);
@@ -188,7 +197,9 @@ void main() {
       await pump(tester);
 
       await tester.enterText(
-          find.byKey(const Key('user_search_field')), 'zzzz');
+        find.byKey(const Key('user_search_field')),
+        'zzzz',
+      );
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('clear_search_button')));
       await tester.pumpAndSettle();
@@ -204,11 +215,16 @@ void main() {
       expect(find.byKey(const Key('pagination_end')), findsOneWidget);
 
       await tester.enterText(
-          find.byKey(const Key('user_search_field')), 'mojo');
+        find.byKey(const Key('user_search_field')),
+        'mojo',
+      );
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('pagination_end')), findsNothing,
-          reason: '"end" under a filter would read as "no more matches exist"');
+      expect(
+        find.byKey(const Key('pagination_end')),
+        findsNothing,
+        reason: '"end" under a filter would read as "no more matches exist"',
+      );
     });
   });
 
@@ -262,8 +278,11 @@ void main() {
       final FilledButton button = tester.widget<FilledButton>(
         find.byKey(const Key('rate_limit_retry_button')),
       );
-      expect(button.onPressed, isNull,
-          reason: 'a retry guaranteed to fail invites repeated 403s');
+      expect(
+        button.onPressed,
+        isNull,
+        reason: 'a retry guaranteed to fail invites repeated 403s',
+      );
     });
   });
 
@@ -314,7 +333,10 @@ void main() {
       await pump(tester);
 
       await tester.fling(
-          find.byKey(const PageStorageKey<String>('users_list')), const Offset(0, 400), 1000);
+        find.byKey(const PageStorageKey<String>('users_list')),
+        const Offset(0, 400),
+        1000,
+      );
       await tester.pumpAndSettle();
 
       verify(
@@ -334,10 +356,14 @@ void main() {
       stubSuccess();
       await pump(tester, size: const Size(400, 800));
 
-      expect(find.byKey(const PageStorageKey<String>('users_list')),
-          findsOneWidget);
-      expect(find.byKey(const PageStorageKey<String>('users_grid')),
-          findsNothing);
+      expect(
+        find.byKey(const PageStorageKey<String>('users_list')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const PageStorageKey<String>('users_grid')),
+        findsNothing,
+      );
       expect(find.byType(UserListTile), findsWidgets);
     });
 
@@ -347,8 +373,10 @@ void main() {
       stubSuccess();
       await pump(tester, size: const Size(700, 900));
 
-      expect(find.byKey(const PageStorageKey<String>('users_grid')),
-          findsOneWidget);
+      expect(
+        find.byKey(const PageStorageKey<String>('users_grid')),
+        findsOneWidget,
+      );
       expect(find.byType(UserGridCard), findsWidgets);
       expect(find.byType(UserListTile), findsNothing);
     });
@@ -359,7 +387,9 @@ void main() {
       stubSuccess();
       await pump(tester, size: const Size(1000, 900));
 
-      final SliverGrid grid = tester.widget<SliverGrid>(find.byType(SliverGrid));
+      final SliverGrid grid = tester.widget<SliverGrid>(
+        find.byType(SliverGrid),
+      );
       final SliverGridDelegateWithFixedCrossAxisCount delegate =
           grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
       expect(delegate.crossAxisCount, 3);
@@ -376,8 +406,11 @@ void main() {
       tester.view.physicalSize = const Size(800, 400);
       await tester.pumpAndSettle();
 
-      expect(find.byType(UserGridCard), findsWidgets,
-          reason: 'layout swaps with width');
+      expect(
+        find.byType(UserGridCard),
+        findsWidgets,
+        reason: 'layout swaps with width',
+      );
       verify(
         repository.getUsers(
           cursor: null,
@@ -443,11 +476,14 @@ void main() {
       await pump(tester);
 
       await tester.enterText(
-          find.byKey(const Key('user_search_field')), 'mojo');
+        find.byKey(const Key('user_search_field')),
+        'mojo',
+      );
       await tester.pumpAndSettle();
 
-      final Size size =
-          tester.getSize(find.byKey(const Key('search_clear_button')));
+      final Size size = tester.getSize(
+        find.byKey(const Key('search_clear_button')),
+      );
       expect(size.width, greaterThanOrEqualTo(48));
       expect(size.height, greaterThanOrEqualTo(48));
     });

@@ -48,7 +48,10 @@ class DetailInfoRow extends StatelessWidget {
     return InkWell(
       onTap: effectiveOnTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm + AppSpacing.xs),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm + AppSpacing.xs,
+        ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -69,7 +72,9 @@ class DetailInfoRow extends StatelessWidget {
                     style: theme.textTheme.labelMedium?.copyWith(
                       // Muted label as well as muted value, so the whole row
                       // reads as "nothing here" at a glance.
-                      color: unavailable ? scheme.outline : scheme.onSurfaceVariant,
+                      color: unavailable
+                          ? scheme.outline
+                          : scheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xs / 2),
@@ -82,8 +87,9 @@ class DetailInfoRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: unavailable ? scheme.outline : scheme.onSurface,
-                      fontStyle:
-                          unavailable ? FontStyle.italic : FontStyle.normal,
+                      fontStyle: unavailable
+                          ? FontStyle.italic
+                          : FontStyle.normal,
                       decoration: effectiveOnTap != null
                           ? TextDecoration.underline
                           : null,

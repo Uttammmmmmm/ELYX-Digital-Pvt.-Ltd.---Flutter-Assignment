@@ -20,17 +20,21 @@ void main() {
   });
 
   test('delegates a valid id to the repository', () async {
-    when(repository.getUserDetail('2'))
-        .thenAnswer((_) async => Right<Failure, UserDetail>(detail));
+    when(
+      repository.getUserDetail('2'),
+    ).thenAnswer((_) async => Right<Failure, UserDetail>(detail));
 
-    expect(await useCase(const GetUserDetailParams('2')),
-        Right<Failure, UserDetail>(detail));
+    expect(
+      await useCase(const GetUserDetailParams('2')),
+      Right<Failure, UserDetail>(detail),
+    );
     verify(repository.getUserDetail('2')).called(1);
   });
 
   test('trims before delegating', () async {
-    when(repository.getUserDetail('2'))
-        .thenAnswer((_) async => Right<Failure, UserDetail>(detail));
+    when(
+      repository.getUserDetail('2'),
+    ).thenAnswer((_) async => Right<Failure, UserDetail>(detail));
 
     await useCase(const GetUserDetailParams('  2  '));
 
@@ -38,18 +42,26 @@ void main() {
   });
 
   test('an empty id fails validation WITHOUT spending a request', () async {
-    final Either<Failure, UserDetail> result =
-        await useCase(const GetUserDetailParams(''));
+    final Either<Failure, UserDetail> result = await useCase(
+      const GetUserDetailParams(''),
+    );
 
-    expect(result.fold((Failure f) => f, (_) => null), isA<ValidationFailure>());
+    expect(
+      result.fold((Failure f) => f, (_) => null),
+      isA<ValidationFailure>(),
+    );
     verifyZeroInteractions(repository);
   });
 
   test('a whitespace-only id fails validation', () async {
-    final Either<Failure, UserDetail> result =
-        await useCase(const GetUserDetailParams('   '));
+    final Either<Failure, UserDetail> result = await useCase(
+      const GetUserDetailParams('   '),
+    );
 
-    expect(result.fold((Failure f) => f, (_) => null), isA<ValidationFailure>());
+    expect(
+      result.fold((Failure f) => f, (_) => null),
+      isA<ValidationFailure>(),
+    );
     verifyZeroInteractions(repository);
   });
 
@@ -59,8 +71,9 @@ void main() {
     );
 
     expect(
-      (await useCase(const GetUserDetailParams('ghost')))
-          .fold((Failure f) => f, (_) => null),
+      (await useCase(
+        const GetUserDetailParams('ghost'),
+      )).fold((Failure f) => f, (_) => null),
       isA<NotFoundFailure>(),
     );
   });

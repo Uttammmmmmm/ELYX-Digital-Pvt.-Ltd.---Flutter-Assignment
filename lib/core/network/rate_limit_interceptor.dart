@@ -19,7 +19,7 @@ import 'rate_limit_tracker.dart';
 ///     so the repository can produce a distinct failure. Constraint (d).
 class RateLimitInterceptor extends Interceptor {
   RateLimitInterceptor(this._tracker, {DateTime Function()? clock})
-      : _now = clock ?? DateTime.now;
+    : _now = clock ?? DateTime.now;
 
   final RateLimitTracker _tracker;
 
@@ -67,14 +67,17 @@ class RateLimitInterceptor extends Interceptor {
 
   /// Stores the latest budget, ignoring responses that carry no rate headers.
   void _record(Headers? headers) {
-    final int? remaining =
-        readIntHeader(headers, ApiConstants.headerRateLimitRemaining);
+    final int? remaining = readIntHeader(
+      headers,
+      ApiConstants.headerRateLimitRemaining,
+    );
     if (remaining == null) return;
 
     _tracker.update(
       RateLimitSnapshot(
         remaining: remaining,
-        limit: readIntHeader(headers, ApiConstants.headerRateLimitLimit) ??
+        limit:
+            readIntHeader(headers, ApiConstants.headerRateLimitLimit) ??
             (ApiConstants.hasToken ? 5000 : 60),
         resetAt: rateLimitResetAt(headers, now: _now()),
         observedAt: _now(),

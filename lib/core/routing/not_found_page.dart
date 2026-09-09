@@ -28,22 +28,29 @@ class NotFoundPage extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              Icon(Icons.wrong_location_outlined,
-                  size: 48, color: theme.colorScheme.outline),
+              Icon(
+                Icons.wrong_location_outlined,
+                size: 48,
+                color: theme.colorScheme.outline,
+              ),
               const SizedBox(height: 16),
-              Text("That screen doesn't exist",
-                  style: theme.textTheme.titleMedium),
+              Text(
+                "That screen doesn't exist",
+                style: theme.textTheme.titleMedium,
+              ),
               const SizedBox(height: 8),
               Text(
                 routeName == null ? 'Unknown route.' : 'Route: $routeName',
                 textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.outline),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.outline,
+                ),
               ),
               const SizedBox(height: 24),
               FilledButton(
-                onPressed: () => Navigator.of(context)
-                    .popUntil((Route<dynamic> r) => r.isFirst),
+                onPressed: () => Navigator.of(
+                  context,
+                ).popUntil((Route<dynamic> r) => r.isFirst),
                 child: const Text('Back to users'),
               ),
             ],

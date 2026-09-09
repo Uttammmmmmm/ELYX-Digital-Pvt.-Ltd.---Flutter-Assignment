@@ -42,8 +42,9 @@ class UserDetailPage extends StatelessWidget {
       // dispose(), which runs when this route is popped. Combined with the
       // isClosed guard in the bloc, an in-flight request that lands after the
       // pop is discarded instead of emitting into a closed controller.
-      create: (_) => sl<UserDetailBloc>(param1: summary)
-        ..add(UserDetailRequested(summary.detailId)),
+      create: (_) =>
+          sl<UserDetailBloc>(param1: summary)
+            ..add(UserDetailRequested(summary.detailId)),
       child: const UserDetailView(),
     );
   }
@@ -244,7 +245,8 @@ class _Body extends StatelessWidget {
             icon: Icons.link,
             label: UsersStrings.labelWebsite,
             value: detail.blog!,
-            onTap: () => _copy(context, UsersStrings.labelWebsite, detail.blog!),
+            onTap: () =>
+                _copy(context, UsersStrings.labelWebsite, detail.blog!),
           ),
         if (detail.createdAt != null)
           DetailInfoRow(

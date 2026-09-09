@@ -24,7 +24,10 @@ class DetailBodySkeleton extends StatelessWidget {
       children: <Widget>[
         for (int i = 0; i < rowCount; i++)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm + AppSpacing.xs),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm + AppSpacing.xs,
+            ),
             child: Row(
               children: <Widget>[
                 Container(width: 20, height: 20, color: base),

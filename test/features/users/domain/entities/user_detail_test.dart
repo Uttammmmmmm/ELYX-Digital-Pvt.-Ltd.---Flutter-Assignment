@@ -7,8 +7,10 @@ import '../../../../helpers/entity_fixtures.dart';
 void main() {
   group('displayName -- never blank, whichever source supplied the user', () {
     test('prefers a real name', () {
-      expect(reqresDetail(1, first: 'George', last: 'Bluth').displayName,
-          'George Bluth');
+      expect(
+        reqresDetail(1, first: 'George', last: 'Bluth').displayName,
+        'George Bluth',
+      );
     });
 
     test('falls back to the handle when there is no name', () {
@@ -16,8 +18,11 @@ void main() {
     });
 
     test('falls back to the id when there is neither', () {
-      const UserSummary bare =
-          UserSummary(id: 7, detailId: '7', avatarUrl: 'a');
+      const UserSummary bare = UserSummary(
+        id: 7,
+        detailId: '7',
+        avatarUrl: 'a',
+      );
       expect(const UserDetail(user: bare).displayName, 'User 7');
     });
 
@@ -61,7 +66,10 @@ void main() {
     // cannot render fabricated data. NEITHER supported API has a phone field,
     // so this is a documented gap, not an unimplemented feature.
     final UserDetail detail = reqresDetail(1);
-    expect(detail.props.length, 9,
-        reason: 'adding a phone field would be modelling data no source has');
+    expect(
+      detail.props.length,
+      9,
+      reason: 'adding a phone field would be modelling data no source has',
+    );
   });
 }

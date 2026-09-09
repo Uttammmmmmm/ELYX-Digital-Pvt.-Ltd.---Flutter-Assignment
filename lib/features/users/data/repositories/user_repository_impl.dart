@@ -56,9 +56,9 @@ class UserRepositoryImpl implements UserRepository {
     required UsersApi api,
     required UserLocalDataSource local,
     required NetworkInfo networkInfo,
-  })  : _api = api,
-        _local = local,
-        _network = networkInfo;
+  }) : _api = api,
+       _local = local,
+       _network = networkInfo;
 
   final UsersApi _api;
   final UserLocalDataSource _local;
@@ -74,8 +74,9 @@ class UserRepositoryImpl implements UserRepository {
     //     replacing -- neither this batch nor any later one.
     if (forceRefresh) await _local.clearUsersPages();
 
-    final CachedPageModel? cached =
-        forceRefresh ? null : _local.getCachedUsersPage(cursor);
+    final CachedPageModel? cached = forceRefresh
+        ? null
+        : _local.getCachedUsersPage(cursor);
 
     // (2) Fresh cache hit -- answered without touching the network.
     if (cached != null && !cached.isStale(CacheConstants.pagesTtl)) {
@@ -91,8 +92,10 @@ class UserRepositoryImpl implements UserRepository {
     }
 
     try {
-      final PaginatedUsers page =
-          await _api.fetchUsers(cursor: cursor, perPage: perPage);
+      final PaginatedUsers page = await _api.fetchUsers(
+        cursor: cursor,
+        perPage: perPage,
+      );
 
       // (6) and (7). An empty batch is cached like any other -- its
       //     `hasReachedEnd` is already true, and remembering that avoids

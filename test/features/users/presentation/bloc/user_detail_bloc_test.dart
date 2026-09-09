@@ -20,42 +20,51 @@ final UserDetail _detail = reqresDetail(2, first: 'Janet', last: 'Weaver');
 void main() {
   late MockUserRepository repository;
 
-  UserDetailBloc build() => UserDetailBloc(
-        getUserDetail: GetUserDetail(repository),
-        seed: _seed,
-      );
+  UserDetailBloc build() =>
+      UserDetailBloc(getUserDetail: GetUserDetail(repository), seed: _seed);
 
   setUp(() => repository = MockUserRepository());
 
-  test('the initial state already carries the seed, so nothing renders blank',
-      () {
-    final UserDetailBloc bloc = build();
+  test(
+    'the initial state already carries the seed, so nothing renders blank',
+    () {
+      final UserDetailBloc bloc = build();
 
-    expect(bloc.state.status, UserDetailStatus.initial);
-    expect(bloc.state.seed, _seed);
-    expect(bloc.state.detailId, '2');
-    expect(bloc.state.detail, isNull);
+      expect(bloc.state.status, UserDetailStatus.initial);
+      expect(bloc.state.seed, _seed);
+      expect(bloc.state.detailId, '2');
+      expect(bloc.state.detail, isNull);
 
-    bloc.close();
-  });
+      bloc.close();
+    },
+  );
 
   blocTest<UserDetailBloc, UserDetailState>(
     'emits loading then success, keeping the seed throughout',
-    setUp: () => when(repository.getUserDetail('2'))
-        .thenAnswer((_) async => Right<Failure, UserDetail>(_detail)),
+    setUp: () => when(
+      repository.getUserDetail('2'),
+    ).thenAnswer((_) async => Right<Failure, UserDetail>(_detail)),
     build: build,
-    act: (UserDetailBloc bloc) =>
-        bloc.add(const UserDetailRequested('2')),
+    act: (UserDetailBloc bloc) => bloc.add(const UserDetailRequested('2')),
     expect: () => <Matcher>[
       isA<UserDetailState>()
-          .having((UserDetailState s) => s.status, 'status',
-              UserDetailStatus.loading)
+          .having(
+            (UserDetailState s) => s.status,
+            'status',
+            UserDetailStatus.loading,
+          )
           .having((UserDetailState s) => s.seed, 'seed kept', _seed),
       isA<UserDetailState>()
-          .having((UserDetailState s) => s.status, 'status',
-              UserDetailStatus.success)
-          .having((UserDetailState s) => s.detail?.displayName, 'displayName',
-              'Janet Weaver')
+          .having(
+            (UserDetailState s) => s.status,
+            'status',
+            UserDetailStatus.success,
+          )
+          .having(
+            (UserDetailState s) => s.detail?.displayName,
+            'displayName',
+            'Janet Weaver',
+          )
           // reqres always returns an email -- unlike GitHub, where it is
           // null for most accounts.
           .having((UserDetailState s) => s.detail?.hasEmail, 'hasEmail', true)
@@ -69,39 +78,51 @@ void main() {
       (_) async => const Left<Failure, UserDetail>(NotFoundFailure()),
     ),
     build: build,
-    act: (UserDetailBloc bloc) =>
-        bloc.add(const UserDetailRequested('2')),
+    act: (UserDetailBloc bloc) => bloc.add(const UserDetailRequested('2')),
     skip: 1,
     expect: () => <Matcher>[
       isA<UserDetailState>()
-          .having((UserDetailState s) => s.status, 'status',
-              UserDetailStatus.failure)
-          .having((UserDetailState s) => s.failure, 'failure',
-              isA<NotFoundFailure>())
+          .having(
+            (UserDetailState s) => s.status,
+            'status',
+            UserDetailStatus.failure,
+          )
+          .having(
+            (UserDetailState s) => s.failure,
+            'failure',
+            isA<NotFoundFailure>(),
+          )
           .having((UserDetailState s) => s.seed, 'seed survives', _seed),
     ],
   );
 
   blocTest<UserDetailBloc, UserDetailState>(
     'UserDetailRetried refetches using the seed login and recovers',
-    setUp: () => when(repository.getUserDetail('2')).thenAnswer(
-      (_) async => const Left<Failure, UserDetail>(ServerFailure()),
-    ),
+    setUp: () => when(
+      repository.getUserDetail('2'),
+    ).thenAnswer((_) async => const Left<Failure, UserDetail>(ServerFailure())),
     build: build,
     act: (UserDetailBloc bloc) async {
       bloc.add(const UserDetailRequested('2'));
       await Future<void>.delayed(Duration.zero);
-      when(repository.getUserDetail('2'))
-          .thenAnswer((_) async => Right<Failure, UserDetail>(_detail));
+      when(
+        repository.getUserDetail('2'),
+      ).thenAnswer((_) async => Right<Failure, UserDetail>(_detail));
       bloc.add(const UserDetailRetried());
     },
     skip: 2,
     expect: () => <Matcher>[
       isA<UserDetailState>().having(
-          (UserDetailState s) => s.status, 'status', UserDetailStatus.loading),
+        (UserDetailState s) => s.status,
+        'status',
+        UserDetailStatus.loading,
+      ),
       isA<UserDetailState>()
-          .having((UserDetailState s) => s.status, 'status',
-              UserDetailStatus.success)
+          .having(
+            (UserDetailState s) => s.status,
+            'status',
+            UserDetailStatus.success,
+          )
           .having((UserDetailState s) => s.failure, 'failure cleared', isNull),
     ],
   );
@@ -114,8 +135,7 @@ void main() {
       ),
     ),
     build: build,
-    act: (UserDetailBloc bloc) =>
-        bloc.add(const UserDetailRequested('2')),
+    act: (UserDetailBloc bloc) => bloc.add(const UserDetailRequested('2')),
     skip: 1,
     expect: () => <Matcher>[
       isA<UserDetailState>().having(
@@ -128,12 +148,10 @@ void main() {
 
   blocTest<UserDetailBloc, UserDetailState>(
     'droppable(): a double-tapped Retry spends only one request',
-    setUp: () => when(repository.getUserDetail('2')).thenAnswer(
-      (_) async {
-        await Future<void>.delayed(const Duration(milliseconds: 50));
-        return Right<Failure, UserDetail>(_detail);
-      },
-    ),
+    setUp: () => when(repository.getUserDetail('2')).thenAnswer((_) async {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      return Right<Failure, UserDetail>(_detail);
+    }),
     build: build,
     act: (UserDetailBloc bloc) => bloc
       ..add(const UserDetailRetried())
@@ -145,12 +163,10 @@ void main() {
 
   blocTest<UserDetailBloc, UserDetailState>(
     'closing mid-request emits nothing (back navigation)',
-    setUp: () => when(repository.getUserDetail('2')).thenAnswer(
-      (_) async {
-        await Future<void>.delayed(const Duration(milliseconds: 50));
-        return Right<Failure, UserDetail>(_detail);
-      },
-    ),
+    setUp: () => when(repository.getUserDetail('2')).thenAnswer((_) async {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      return Right<Failure, UserDetail>(_detail);
+    }),
     build: build,
     act: (UserDetailBloc bloc) async {
       bloc.add(const UserDetailRequested('2'));

@@ -45,8 +45,9 @@ void main() {
     HiveInitializer.registerAdaptersOnce();
     boxes = HiveBoxes(
       pages: await Hive.openBox<CachedPageModel>(CacheConstants.usersPageBox),
-      details:
-          await Hive.openBox<UserDetailModel>(CacheConstants.userDetailBox),
+      details: await Hive.openBox<UserDetailModel>(
+        CacheConstants.userDetailBox,
+      ),
     );
     await init(boxes: boxes);
   });
@@ -75,8 +76,11 @@ void main() {
       expect(kApiSource, 'reqres');
       expect(sl<UsersApi>(), isA<ReqresUsersApi>());
       expect(sl<UsersApi>().baseUrl, 'https://reqres.in/api');
-      expect(sl<UsersApi>().headers['x-api-key'], isNotEmpty,
-          reason: 'reqres 401s without it');
+      expect(
+        sl<UsersApi>().headers['x-api-key'],
+        isNotEmpty,
+        reason: 'reqres 401s without it',
+      );
     });
 
     test('the Dio client takes its host and headers from the source', () {
@@ -87,15 +91,21 @@ void main() {
 
     test('registered against the ABSTRACT types only', () {
       expect(sl<UserRepository>(), isNotNull);
-      expect(sl.isRegistered<ReqresUsersApi>(), isFalse,
-          reason: 'consumers must not reach for an implementation');
+      expect(
+        sl.isRegistered<ReqresUsersApi>(),
+        isFalse,
+        reason: 'consumers must not reach for an implementation',
+      );
     });
   });
 
   group('lifetimes', () {
     test('app-scoped services are singletons', () {
-      expect(sl<RateLimitTracker>(), same(sl<RateLimitTracker>()),
-          reason: 'two trackers would each see half the responses');
+      expect(
+        sl<RateLimitTracker>(),
+        same(sl<RateLimitTracker>()),
+        reason: 'two trackers would each see half the responses',
+      );
       expect(sl<DioClient>(), same(sl<DioClient>()));
       expect(sl<UsersApi>(), same(sl<UsersApi>()));
       expect(sl<UserRepository>(), same(sl<UserRepository>()));
@@ -106,9 +116,13 @@ void main() {
       final UsersBloc a = sl<UsersBloc>();
       final UsersBloc b = sl<UsersBloc>();
 
-      expect(a, isNot(same(b)),
-          reason: 'a singleton bloc closed on the first pop would throw on '
-              'every later screen, and leak state across back navigation');
+      expect(
+        a,
+        isNot(same(b)),
+        reason:
+            'a singleton bloc closed on the first pop would throw on '
+            'every later screen, and leak state across back navigation',
+      );
 
       a.close();
       expect(b.isClosed, isFalse);
@@ -129,8 +143,7 @@ void main() {
   });
 
   group('idempotency', () {
-    test('calling init twice does not throw -- survives hot restart',
-        () async {
+    test('calling init twice does not throw -- survives hot restart', () async {
       await expectLater(init(boxes: boxes), completes);
       expect(sl<UserRepository>(), isNotNull);
     });
@@ -139,10 +152,12 @@ void main() {
   group('test overrides', () {
     test('a mock UsersApi can replace the real one', () async {
       final MockUsersApi mockApi = MockUsersApi();
-      when(mockApi.fetchUsers(
-        cursor: anyNamed('cursor'),
-        perPage: anyNamed('perPage'),
-      )).thenAnswer(
+      when(
+        mockApi.fetchUsers(
+          cursor: anyNamed('cursor'),
+          perPage: anyNamed('perPage'),
+        ),
+      ).thenAnswer(
         (_) async => PaginatedUsers.fromBatch(
           users: <UserSummary>[reqresUser(1, first: 'FromThe', last: 'Mock')],
           nextCursor: 2,
@@ -163,12 +178,14 @@ void main() {
       //    first resolution -- the step that is easy to forget.
       sl.resetLazySingleton<UserRepository>();
 
-      final Either<Failure, PaginatedUsers> result =
-          await sl<UserRepository>().getUsers();
+      final Either<Failure, PaginatedUsers> result = await sl<UserRepository>()
+          .getUsers();
 
       expect(
-        result.fold((Failure f) => fail('expected Right: $f'),
-            (PaginatedUsers p) => p.users.single.displayName),
+        result.fold(
+          (Failure f) => fail('expected Right: $f'),
+          (PaginatedUsers p) => p.users.single.displayName,
+        ),
         'FromThe Mock',
       );
     });

@@ -21,8 +21,8 @@ class GitHubUsersApi implements UsersApi {
   const GitHubUsersApi({
     required DioClient client,
     LinkHeaderParser linkHeaderParser = const LinkHeaderParser(),
-  })  : _client = client,
-        _linkParser = linkHeaderParser;
+  }) : _client = client,
+       _linkParser = linkHeaderParser;
 
   final DioClient _client;
 
@@ -44,8 +44,8 @@ class GitHubUsersApi implements UsersApi {
     // The cursor IS a user id for this source.
     final int? since = cursor is int ? cursor : null;
 
-    final ApiResponse<List<dynamic>> response =
-        await _client.get<List<dynamic>>(
+    final ApiResponse<List<dynamic>>
+    response = await _client.get<List<dynamic>>(
       ApiConstants.usersPath,
       queryParameters: <String, dynamic>{
         ApiConstants.paramPerPage: perPage,
@@ -77,10 +77,10 @@ class GitHubUsersApi implements UsersApi {
     // Percent-encode the path segment: this value can reach us from a cache
     // written by an older build or a deep link, and an unencoded '/' or '?'
     // would silently retarget the request at a different endpoint.
-    final ApiResponse<Map<String, dynamic>> response =
-        await _client.get<Map<String, dynamic>>(
-      ApiConstants.userDetailPath(Uri.encodeComponent(id)),
-    );
+    final ApiResponse<Map<String, dynamic>> response = await _client
+        .get<Map<String, dynamic>>(
+          ApiConstants.userDetailPath(Uri.encodeComponent(id)),
+        );
 
     final Map<String, dynamic>? body = response.data;
     if (body == null) {
