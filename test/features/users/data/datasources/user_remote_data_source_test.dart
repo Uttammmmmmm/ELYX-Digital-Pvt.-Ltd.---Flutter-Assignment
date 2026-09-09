@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:elyx_digital_assignment/core/constants/api_constants.dart';
 import 'package:elyx_digital_assignment/core/error/exceptions.dart';
 import 'package:elyx_digital_assignment/core/network/dio_client.dart';
+import 'package:elyx_digital_assignment/core/network/link_header_parser.dart';
 import 'package:elyx_digital_assignment/core/network/rate_limit_tracker.dart';
 import 'package:elyx_digital_assignment/features/users/data/datasources/user_remote_data_source.dart';
 import 'package:elyx_digital_assignment/features/users/domain/entities/paginated_users.dart';
@@ -24,7 +25,8 @@ void main() {
     final Dio dio = Dio()..httpClientAdapter = adapter;
     return (
       source: UserRemoteDataSourceImpl(
-        DioClient(rateLimitTracker: tracker, dio: dio),
+        client: DioClient(rateLimitTracker: tracker, dio: dio),
+        linkHeaderParser: const LinkHeaderParser(),
       ),
       adapter: adapter,
     );
@@ -212,7 +214,8 @@ void main() {
       );
       final Dio dio = Dio()..httpClientAdapter = adapter;
       final UserRemoteDataSourceImpl source = UserRemoteDataSourceImpl(
-        DioClient(rateLimitTracker: tracker, dio: dio),
+        client: DioClient(rateLimitTracker: tracker, dio: dio),
+        linkHeaderParser: const LinkHeaderParser(),
       );
 
       await expectLater(

@@ -5,6 +5,11 @@ import '../constants/api_constants.dart';
 
 /// Extracts pagination cursors from GitHub's `Link` response header.
 ///
+/// An instance rather than a static utility so it can be injected: the remote
+/// data source depends on this type, not on a global function, which keeps it
+/// unit-testable with a stub parser and makes the dependency visible in the
+/// constructor rather than hidden in the body.
+///
 /// The real header looks exactly like this (one line, comma-separated):
 ///
 /// ```
@@ -15,7 +20,11 @@ import '../constants/api_constants.dart';
 /// This is authoritative for "is there a next page" -- preferring it over
 /// "the array came back empty" saves one whole request per exhausted list,
 /// which matters at 60 requests/hour. Constraint (a).
-abstract final class LinkHeaderParser {
+class LinkHeaderParser {
+  /// `const` so the DI registration costs nothing and the type stays trivially
+  /// constructible in tests that do not want the service locator.
+  const LinkHeaderParser();
+
   /// Matches one `<url>; rel="name"` entry. `[^>]+` keeps commas inside the
   /// URL from splitting entries, which a naive `split(',')` gets wrong.
   static final RegExp _entry = RegExp(r'<([^>]*)>\s*;\s*([^,]*)');
@@ -29,7 +38,7 @@ abstract final class LinkHeaderParser {
   /// Returns a `rel -> url` map. Empty when [header] is null, blank or
   /// unparseable -- a malformed header degrades to "no more pages", never
   /// to an exception.
-  static Map<String, String> parse(String? header) {
+  Map<String, String> parse(String? header) {
     if (header == null || header.trim().isEmpty) {
       return const <String, String>{};
     }
@@ -55,14 +64,14 @@ abstract final class LinkHeaderParser {
   }
 
   /// The absolute URL of the next page, or null at the end of the list.
-  static String? nextUrl(String? header) => parse(header)['next'];
+  String? nextUrl(String? header) => parse(header)['next'];
 
   /// The `since` cursor from the `rel="next"` URL, or null when there is no
   /// next page.
   ///
   /// [Uri.queryParameters] percent-decodes for us, so `since=46%32` and
   /// templated URLs (`{?since}`, which carry no real value) both behave.
-  static int? nextSince(String? header) {
+  int? nextSince(String? header) {
     final String? url = nextUrl(header);
     if (url == null) return null;
 

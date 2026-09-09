@@ -1,49 +1,90 @@
-/// Hive bootstrap.
+/// Hive bootstrap: adapters, boxes, and recovery from a corrupted store.
 library;
 
+import 'package:flutter/foundation.dart';
 import 'package:hive_ce_flutter/hive_flutter.dart';
 
 import '../../features/users/data/models/cached_page_model.dart';
 import '../../features/users/data/models/user_detail_model.dart';
-import '../../hive_registrar.g.dart';
+import '../../features/users/data/models/user_summary_model.dart';
 import '../constants/cache_constants.dart';
 import 'hive_type_ids.dart';
 
-/// Registers every generated adapter and opens every box, once, before
-/// `runApp`.
+/// The boxes opened at startup, handed to DI.
 ///
-/// STEP 5 (DI) DEPENDS ON THIS HAVING RUN. Order is not negotiable:
-///   1. `Hive.initFlutter()` -- resolve the storage directory.
-///   2. `Hive.registerAdapters()` -- from the generated `hive_registrar.g.dart`,
-///      which lists every `@HiveType` in the app. Opening a typed box before
-///      its adapter is registered throws at runtime, not compile time.
-///   3. `openBox<T>` -- eagerly, so the data layer can depend on a synchronous
-///      `Box<T>` and never carry an "is it open yet" state.
-abstract final class HiveInitializer {
-  /// Initialises Hive, registers adapters, opens boxes.
-  static Future<void> init() async {
-    await Hive.initFlutter();
+/// Returned as a value rather than read back out of `Hive.box<T>()` at each
+/// call site so the dependency is explicit: DI receives what bootstrap
+/// produced, instead of both of them independently trusting global state.
+@immutable
+class HiveBoxes {
+  const HiveBoxes({required this.pages, required this.details});
 
+  /// Cursor-keyed batches of the users list.
+  final Box<CachedPageModel> pages;
+
+  /// Login-keyed profile documents.
+  final Box<UserDetailModel> details;
+}
+
+/// Prepares Hive for use, once, before `runApp`.
+///
+/// ORDER IS NOT NEGOTIABLE:
+///   1. `initFlutter()` resolves the storage directory.
+///   2. adapters are registered -- opening a typed box before its adapter
+///      exists throws at RUNTIME, not compile time.
+///   3. boxes are opened eagerly, so the data layer can depend on a
+///      synchronous `Box<T>` and never carry an "is it open yet" state.
+abstract final class HiveInitializer {
+  /// Runs the full bootstrap and returns the opened boxes.
+  static Future<HiveBoxes> init() async {
+    await Hive.initFlutter();
     registerAdaptersOnce();
 
-    await Future.wait(<Future<void>>[
-      Hive.openBox<CachedPageModel>(CacheConstants.usersPageBox),
-      Hive.openBox<UserDetailModel>(CacheConstants.userDetailBox),
-    ]);
+    return HiveBoxes(
+      pages: await _openBoxSafely<CachedPageModel>(CacheConstants.usersPageBox),
+      details:
+          await _openBoxSafely<UserDetailModel>(CacheConstants.userDetailBox),
+    );
   }
 
   /// Registers every generated adapter, at most once.
   ///
-  /// The type registry is global and outlives any single call, and
-  /// `registerAdapter` THROWS on a duplicate typeId rather than ignoring it.
-  /// That makes a second call fatal -- which happens on hot restart, and in
-  /// any test file that sets Hive up per-test. Guarding on a known id keeps
-  /// registration idempotent.
+  /// `registerAdapter` THROWS on a duplicate typeId rather than ignoring it,
+  /// so a second call is fatal. That happens on hot restart and in any test
+  /// file that sets Hive up per-test, which is why each registration is
+  /// guarded individually rather than trusting a "did we already run" flag --
+  /// a flag would go stale if adapters were ever registered elsewhere.
   static void registerAdaptersOnce() {
-    if (Hive.isAdapterRegistered(HiveTypeIds.userSummary)) return;
-    // Generated: adding a new @HiveType regenerates this call automatically,
-    // so a forgotten registration is impossible.
-    Hive.registerAdapters();
+    if (!Hive.isAdapterRegistered(HiveTypeIds.userSummary)) {
+      Hive.registerAdapter(UserSummaryModelAdapter());
+    }
+    if (!Hive.isAdapterRegistered(HiveTypeIds.userDetail)) {
+      Hive.registerAdapter(UserDetailModelAdapter());
+    }
+    if (!Hive.isAdapterRegistered(HiveTypeIds.cachedPage)) {
+      Hive.registerAdapter(CachedPageModelAdapter());
+    }
+  }
+
+  /// Opens [name], recovering by deleting the box if it cannot be read.
+  ///
+  /// A corrupted box -- a half-written record from a kill during a flush, or
+  /// a file written by an incompatible older schema -- otherwise throws here
+  /// and the app never reaches `runApp`. That is the worst possible failure:
+  /// a permanent launch crash, fixable only by reinstalling. The cache is by
+  /// definition reconstructible from the network, so discarding it is always
+  /// preferable to failing to start. The cost is one cold fetch.
+  static Future<Box<T>> _openBoxSafely<T>(String name) async {
+    try {
+      return await Hive.openBox<T>(name);
+    } catch (error, stackTrace) {
+      debugPrint('[hive] box "$name" unreadable, recreating: $error');
+      debugPrintStack(stackTrace: stackTrace, maxFrames: 5);
+
+      // deleteBoxFromDisk also closes it if a partial open left it registered.
+      await Hive.deleteBoxFromDisk(name);
+      return Hive.openBox<T>(name);
+    }
   }
 
   /// Closes all boxes. For tests and hot-restart hygiene.

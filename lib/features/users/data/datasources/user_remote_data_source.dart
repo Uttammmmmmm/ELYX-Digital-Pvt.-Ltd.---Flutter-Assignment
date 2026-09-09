@@ -33,9 +33,17 @@ abstract interface class UserRemoteDataSource {
 /// query string. It fetches and parses; it makes no decisions about caching,
 /// retries or fallbacks -- those are the repository's.
 class UserRemoteDataSourceImpl implements UserRemoteDataSource {
-  const UserRemoteDataSourceImpl(this._client);
+  const UserRemoteDataSourceImpl({
+    required DioClient client,
+    required LinkHeaderParser linkHeaderParser,
+  })  : _client = client,
+        _linkParser = linkHeaderParser;
 
   final DioClient _client;
+
+  /// Injected so the cursor-extraction strategy is visible in the constructor
+  /// and replaceable in tests, rather than reached for as a global.
+  final LinkHeaderParser _linkParser;
 
   @override
   Future<PaginatedUsers> getUsers({
@@ -68,7 +76,7 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
       // Authoritative source of "is there more". Preferring it over "the
       // array came back empty" saves one whole request per exhausted list,
       // which matters against a 60/hour budget. Constraint (a).
-      nextSince: LinkHeaderParser.nextSince(
+      nextSince: _linkParser.nextSince(
         response.header(ApiConstants.headerLink),
       ),
     );
