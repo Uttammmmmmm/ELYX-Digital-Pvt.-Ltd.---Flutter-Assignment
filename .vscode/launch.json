@@ -1,0 +1,26 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run (unauthenticated, 60 req/hour)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart"
+    },
+    {
+      "name": "Run (with GitHub token, 5000 req/hour)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "toolArgs": ["--dart-define-from-file", "env.json"]
+    },
+    {
+      "name": "Profile (with GitHub token)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "profile",
+      "program": "lib/main.dart",
+      "toolArgs": ["--dart-define-from-file", "env.json"]
+    }
+  ]
+}

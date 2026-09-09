@@ -43,3 +43,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Local secrets passed via --dart-define-from-file.
+# env.example.json IS committed as a template; env.json never is.
+/env.json

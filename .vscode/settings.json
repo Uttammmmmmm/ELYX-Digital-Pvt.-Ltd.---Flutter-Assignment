@@ -1,0 +1,6 @@
+{
+  "dart.flutterTestAdditionalArgs": [],
+  "search.exclude": {
+    "**/*.mocks.dart": true
+  }
+}
