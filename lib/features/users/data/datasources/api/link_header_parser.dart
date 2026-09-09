@@ -1,9 +1,13 @@
 /// RFC 5988 `Link` header parsing for GitHub's cursor pagination.
 library;
 
-import '../constants/api_constants.dart';
 
 /// Extracts pagination cursors from GitHub's `Link` response header.
+///
+/// Lives under the GitHub implementation because it is GitHub-specific:
+/// reqres.in returns `page`/`total_pages` in the response body and sends no
+/// Link header at all. Keeping it here rather than in `core/network` stops it
+/// looking like shared infrastructure that both sources use.
 ///
 /// An instance rather than a static utility so it can be injected: the remote
 /// data source depends on this type, not on a global function, which keeps it
@@ -78,7 +82,7 @@ class LinkHeaderParser {
     final Uri? uri = Uri.tryParse(url);
     if (uri == null) return null;
 
-    final String? raw = uri.queryParameters[ApiConstants.paramSince];
+    final String? raw = uri.queryParameters['since'];
     if (raw == null) return null;
 
     return int.tryParse(raw.trim());

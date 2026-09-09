@@ -38,10 +38,17 @@ Future<void> main() async {
       };
 
       // Errors from the engine that never reach the framework (image decode,
-      // platform channels). Returning true marks them handled.
+      // platform channels).
       PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
         _report(error, stack, context: 'PlatformDispatcher');
-        return true;
+        // Returning true marks the error HANDLED and stops it propagating.
+        // That is only honest while something is actually handling it -- in
+        // debug, the log below. In release `_report` is a no-op, so returning
+        // true would discard every uncaught async error with no log, no crash
+        // and no report: the app would fail silently in exactly the builds
+        // where that is hardest to diagnose. So release lets it through to
+        // the platform, which at least records it.
+        return kDebugMode;
       };
 
       // ORDER: Hive must be ready before DI, because the container registers
@@ -56,7 +63,14 @@ Future<void> main() async {
   );
 }
 
-/// Single reporting seam. Debug-only; swap for a crash reporter in release.
+/// THE CRASH-REPORTER SEAM.
+///
+/// Every uncaught error in the app funnels through here. Wiring Crashlytics
+/// or Sentry means adding one call in this function -- e.g.
+/// `FirebaseCrashlytics.instance.recordError(error, stack)` -- and nothing
+/// else changes. Until then it logs in debug and, in release, deliberately
+/// declines to mark errors handled (see PlatformDispatcher.onError above) so
+/// the platform still records them.
 void _report(Object error, StackTrace? stack, {required String context}) {
   if (!kDebugMode) return;
   debugPrint('[$context] $error');

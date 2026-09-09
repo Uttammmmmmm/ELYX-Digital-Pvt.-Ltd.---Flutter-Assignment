@@ -7,77 +7,65 @@ import 'user_summary.dart';
 
 /// A page of users and the cursor for the next page.
 ///
-/// CONSTRAINT (a): `GET /users` is CURSOR-paginated via `since`, not
-/// offset-paginated -- a `page` parameter is accepted and silently ignored.
-/// [nextSince] is the `since` value for the following request, taken from the
-/// `Link` header's `rel="next"` entry.
-///
-/// Everything above the data layer treats [nextSince] as OPAQUE: the Bloc
-/// stores it and hands it straight back. Nothing here knows or cares that it
-/// happens to be the last user's id, which is what lets a different backend
-/// with string tokens drop in without touching this file.
+/// [nextCursor] is `Object?` and OPAQUE. The two supported sources paginate
+/// incompatibly — reqres by page number (`?page=2`), GitHub by a user-id
+/// cursor (`?since=47`) — and the only way to keep one Bloc driving both is
+/// for nothing above the data layer to know which it is holding. The Bloc
+/// stores this value and hands it straight back; it never inspects, compares
+/// or increments it.
 class PaginatedUsers extends Equatable {
   const PaginatedUsers({
     required this.users,
-    required this.nextSince,
+    required this.nextCursor,
     required this.hasReachedEnd,
   });
 
-  /// Builds a batch and derives [hasReachedEnd] from the two signals GitHub
-  /// gives us: an absent `rel="next"` cursor, or an empty array.
-  ///
-  /// Preferring the header means the UI can stop paginating WITHOUT spending
-  /// a request to discover an empty page -- which matters at 60/hour.
+  /// Builds a batch and derives [hasReachedEnd] from the two signals both
+  /// sources give: an absent next cursor, or an empty batch.
   factory PaginatedUsers.fromBatch({
     required List<UserSummary> users,
-    required int? nextSince,
+    required Object? nextCursor,
   }) =>
       PaginatedUsers(
         users: users,
-        nextSince: nextSince,
-        hasReachedEnd: nextSince == null || users.isEmpty,
+        nextCursor: nextCursor,
+        hasReachedEnd: nextCursor == null || users.isEmpty,
       );
 
   /// The terminal empty state: nothing loaded, nothing more to load.
-  ///
-  /// Used as a Bloc's initial value and as the result of a request that came
-  /// back empty, so callers never handle a null page.
   factory PaginatedUsers.empty() => const PaginatedUsers(
         users: <UserSummary>[],
-        nextSince: null,
+        nextCursor: null,
         hasReachedEnd: true,
       );
 
-  /// The users in this batch, in the order GitHub returned them.
+  /// The users in this batch, in the order the API returned them.
   final List<UserSummary> users;
 
   /// Opaque cursor for the next request; null at the end of the list.
-  final int? nextSince;
+  final Object? nextCursor;
 
   /// True when there is nothing further to fetch.
   ///
-  /// Stored rather than derived from `nextSince == null` alone, because the
-  /// two end-of-list signals are not the same thing: an empty batch is
-  /// terminal even if a stale cursor is still lying around.
+  /// Stored rather than derived from `nextCursor == null` alone, because the
+  /// two end signals are not the same thing: an empty batch is terminal even
+  /// if a stale cursor is still lying around.
   final bool hasReachedEnd;
 
-  /// Copy helper.
-  ///
-  /// [nextSince] is nullable, so "leave it alone" and "clear it" cannot both
-  /// be expressed by passing null -- [clearNextSince] disambiguates. Reaching
-  /// the end of the list is exactly the case that needs the clear.
+  /// Copy helper. [nextCursor] is nullable, so "leave alone" and "clear"
+  /// cannot both be expressed by passing null.
   PaginatedUsers copyWith({
     List<UserSummary>? users,
-    int? nextSince,
-    bool clearNextSince = false,
+    Object? nextCursor,
+    bool clearNextCursor = false,
     bool? hasReachedEnd,
   }) =>
       PaginatedUsers(
         users: users ?? this.users,
-        nextSince: clearNextSince ? null : (nextSince ?? this.nextSince),
+        nextCursor: clearNextCursor ? null : (nextCursor ?? this.nextCursor),
         hasReachedEnd: hasReachedEnd ?? this.hasReachedEnd,
       );
 
   @override
-  List<Object?> get props => <Object?>[users, nextSince, hasReachedEnd];
+  List<Object?> get props => <Object?>[users, nextCursor, hasReachedEnd];
 }

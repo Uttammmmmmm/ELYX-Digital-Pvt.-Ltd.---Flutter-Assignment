@@ -5,50 +5,39 @@ import 'package:elyx_digital_assignment/features/users/domain/usecases/get_user_
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
+import '../../../../helpers/entity_fixtures.dart';
 import '../../../../helpers/mocks.mocks.dart';
-
-final UserDetail _detail = UserDetail(
-  id: 1,
-  login: 'mojombo',
-  avatarUrl: 'https://avatars.githubusercontent.com/u/1?v=4',
-  htmlUrl: 'https://github.com/mojombo',
-  publicRepos: 66,
-  followers: 23000,
-  following: 11,
-  createdAt: DateTime.utc(2007, 10, 20),
-  name: 'Tom Preston-Werner',
-);
 
 void main() {
   late MockUserRepository repository;
   late GetUserDetail useCase;
+
+  final UserDetail detail = reqresDetail(2, first: 'Janet');
 
   setUp(() {
     repository = MockUserRepository();
     useCase = GetUserDetail(repository);
   });
 
-  test('delegates a valid login to the repository', () async {
-    when(repository.getUserDetail('mojombo'))
-        .thenAnswer((_) async => Right<Failure, UserDetail>(_detail));
+  test('delegates a valid id to the repository', () async {
+    when(repository.getUserDetail('2'))
+        .thenAnswer((_) async => Right<Failure, UserDetail>(detail));
 
-    final Either<Failure, UserDetail> result =
-        await useCase(const GetUserDetailParams('mojombo'));
-
-    expect(result, Right<Failure, UserDetail>(_detail));
-    verify(repository.getUserDetail('mojombo')).called(1);
+    expect(await useCase(const GetUserDetailParams('2')),
+        Right<Failure, UserDetail>(detail));
+    verify(repository.getUserDetail('2')).called(1);
   });
 
-  test('trims the login before delegating', () async {
-    when(repository.getUserDetail('mojombo'))
-        .thenAnswer((_) async => Right<Failure, UserDetail>(_detail));
+  test('trims before delegating', () async {
+    when(repository.getUserDetail('2'))
+        .thenAnswer((_) async => Right<Failure, UserDetail>(detail));
 
-    await useCase(const GetUserDetailParams('  mojombo  '));
+    await useCase(const GetUserDetailParams('  2  '));
 
-    verify(repository.getUserDetail('mojombo')).called(1);
+    verify(repository.getUserDetail('2')).called(1);
   });
 
-  test('an empty login fails validation WITHOUT spending a request', () async {
+  test('an empty id fails validation WITHOUT spending a request', () async {
     final Either<Failure, UserDetail> result =
         await useCase(const GetUserDetailParams(''));
 
@@ -56,7 +45,7 @@ void main() {
     verifyZeroInteractions(repository);
   });
 
-  test('a whitespace-only login fails validation', () async {
+  test('a whitespace-only id fails validation', () async {
     final Either<Failure, UserDetail> result =
         await useCase(const GetUserDetailParams('   '));
 
@@ -69,9 +58,10 @@ void main() {
       (_) async => const Left<Failure, UserDetail>(NotFoundFailure()),
     );
 
-    final Either<Failure, UserDetail> result =
-        await useCase(const GetUserDetailParams('ghost'));
-
-    expect(result.fold((Failure f) => f, (_) => null), isA<NotFoundFailure>());
+    expect(
+      (await useCase(const GetUserDetailParams('ghost')))
+          .fold((Failure f) => f, (_) => null),
+      isA<NotFoundFailure>(),
+    );
   });
 }

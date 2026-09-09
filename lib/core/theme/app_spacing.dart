@@ -22,9 +22,6 @@ abstract final class AppSpacing {
 
   /// 32 - section separation, empty-state padding.
   static const double xl = 32;
-
-  /// 48 - the Material minimum touch target, also used as a large gap.
-  static const double xxl = 48;
 }
 
 /// Corner radii.
@@ -61,7 +58,4 @@ abstract final class AppSizes {
 
   /// Empty- and error-state illustration.
   static const double iconXl = 48;
-
-  /// Material's minimum interactive dimension.
-  static const double minTapTarget = 48;
 }

@@ -4,26 +4,27 @@
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 
-import 'dart:async' as _i6;
+import 'dart:async' as _i7;
 
 import 'package:dartz/dartz.dart' as _i4;
-import 'package:elyx_digital_assignment/core/error/failures.dart' as _i11;
-import 'package:elyx_digital_assignment/core/network/network_info.dart' as _i9;
-import 'package:elyx_digital_assignment/features/users/data/datasources/user_local_data_source.dart'
-    as _i7;
-import 'package:elyx_digital_assignment/features/users/data/datasources/user_remote_data_source.dart'
+import 'package:elyx_digital_assignment/core/error/failures.dart' as _i13;
+import 'package:elyx_digital_assignment/core/network/network_info.dart' as _i11;
+import 'package:elyx_digital_assignment/features/users/data/datasources/api/users_api.dart'
     as _i5;
+import 'package:elyx_digital_assignment/features/users/data/datasources/user_local_data_source.dart'
+    as _i8;
 import 'package:elyx_digital_assignment/features/users/data/models/user_detail_model.dart'
-    as _i3;
+    as _i9;
 import 'package:elyx_digital_assignment/features/users/domain/entities/paginated_users.dart'
     as _i2;
 import 'package:elyx_digital_assignment/features/users/domain/entities/user_detail.dart'
-    as _i12;
+    as _i3;
 import 'package:elyx_digital_assignment/features/users/domain/entities/user_summary.dart'
-    as _i8;
-import 'package:elyx_digital_assignment/features/users/domain/repositories/user_repository.dart'
     as _i10;
+import 'package:elyx_digital_assignment/features/users/domain/repositories/user_repository.dart'
+    as _i12;
 import 'package:mockito/mockito.dart' as _i1;
+import 'package:mockito/src/dummies.dart' as _i6;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -46,9 +47,8 @@ class _FakePaginatedUsers_0 extends _i1.SmartFake
     : super(parent, parentInvocation);
 }
 
-class _FakeUserDetailModel_1 extends _i1.SmartFake
-    implements _i3.UserDetailModel {
-  _FakeUserDetailModel_1(Object parent, Invocation parentInvocation)
+class _FakeUserDetail_1 extends _i1.SmartFake implements _i3.UserDetail {
+  _FakeUserDetail_1(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
 }
 
@@ -57,170 +57,218 @@ class _FakeEither_2<L, R> extends _i1.SmartFake implements _i4.Either<L, R> {
     : super(parent, parentInvocation);
 }
 
-/// A class which mocks [UserRemoteDataSource].
+/// A class which mocks [UsersApi].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockUserRemoteDataSource extends _i1.Mock
-    implements _i5.UserRemoteDataSource {
-  MockUserRemoteDataSource() {
+class MockUsersApi extends _i1.Mock implements _i5.UsersApi {
+  MockUsersApi() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i6.Future<_i2.PaginatedUsers> getUsers({int? since, int? perPage}) =>
+  String get sourceName =>
       (super.noSuchMethod(
-            Invocation.method(#getUsers, [], {
-              #since: since,
+            Invocation.getter(#sourceName),
+            returnValue: _i6.dummyValue<String>(
+              this,
+              Invocation.getter(#sourceName),
+            ),
+          )
+          as String);
+
+  @override
+  String get baseUrl =>
+      (super.noSuchMethod(
+            Invocation.getter(#baseUrl),
+            returnValue: _i6.dummyValue<String>(
+              this,
+              Invocation.getter(#baseUrl),
+            ),
+          )
+          as String);
+
+  @override
+  Map<String, String> get headers =>
+      (super.noSuchMethod(
+            Invocation.getter(#headers),
+            returnValue: <String, String>{},
+          )
+          as Map<String, String>);
+
+  @override
+  _i7.Future<_i2.PaginatedUsers> fetchUsers({Object? cursor, int? perPage}) =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchUsers, [], {
+              #cursor: cursor,
               #perPage: perPage,
             }),
-            returnValue: _i6.Future<_i2.PaginatedUsers>.value(
+            returnValue: _i7.Future<_i2.PaginatedUsers>.value(
               _FakePaginatedUsers_0(
                 this,
-                Invocation.method(#getUsers, [], {
-                  #since: since,
+                Invocation.method(#fetchUsers, [], {
+                  #cursor: cursor,
                   #perPage: perPage,
                 }),
               ),
             ),
           )
-          as _i6.Future<_i2.PaginatedUsers>);
+          as _i7.Future<_i2.PaginatedUsers>);
 
   @override
-  _i6.Future<_i3.UserDetailModel> getUserDetail(String? login) =>
+  _i7.Future<_i3.UserDetail> fetchUserDetail(String? id) =>
       (super.noSuchMethod(
-            Invocation.method(#getUserDetail, [login]),
-            returnValue: _i6.Future<_i3.UserDetailModel>.value(
-              _FakeUserDetailModel_1(
+            Invocation.method(#fetchUserDetail, [id]),
+            returnValue: _i7.Future<_i3.UserDetail>.value(
+              _FakeUserDetail_1(
                 this,
-                Invocation.method(#getUserDetail, [login]),
+                Invocation.method(#fetchUserDetail, [id]),
               ),
             ),
           )
-          as _i6.Future<_i3.UserDetailModel>);
+          as _i7.Future<_i3.UserDetail>);
 }
 
 /// A class which mocks [UserLocalDataSource].
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockUserLocalDataSource extends _i1.Mock
-    implements _i7.UserLocalDataSource {
+    implements _i8.UserLocalDataSource {
   MockUserLocalDataSource() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i6.Future<void> cacheUsersPage(int? since, _i2.PaginatedUsers? page) =>
+  _i7.Future<void> cacheUsersPage(Object? cursor, _i2.PaginatedUsers? page) =>
       (super.noSuchMethod(
-            Invocation.method(#cacheUsersPage, [since, page]),
-            returnValue: _i6.Future<void>.value(),
-            returnValueForMissingStub: _i6.Future<void>.value(),
+            Invocation.method(#cacheUsersPage, [cursor, page]),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
           )
-          as _i6.Future<void>);
+          as _i7.Future<void>);
 
   @override
-  _i6.Future<void> cacheUserDetail(_i3.UserDetailModel? detail) =>
+  _i7.Future<void> cacheUserDetail(_i3.UserDetail? detail) =>
       (super.noSuchMethod(
             Invocation.method(#cacheUserDetail, [detail]),
-            returnValue: _i6.Future<void>.value(),
-            returnValueForMissingStub: _i6.Future<void>.value(),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
           )
-          as _i6.Future<void>);
+          as _i7.Future<void>);
 
   @override
-  _i3.UserDetailModel? getCachedUserDetail(String? login) =>
-      (super.noSuchMethod(Invocation.method(#getCachedUserDetail, [login]))
-          as _i3.UserDetailModel?);
+  _i9.UserDetailModel? getCachedUserDetail(String? detailId) =>
+      (super.noSuchMethod(Invocation.method(#getCachedUserDetail, [detailId]))
+          as _i9.UserDetailModel?);
 
   @override
-  List<_i8.UserSummary> getAllCachedUsers() =>
+  List<_i10.UserSummary> getAllCachedUsers() =>
       (super.noSuchMethod(
             Invocation.method(#getAllCachedUsers, []),
-            returnValue: <_i8.UserSummary>[],
+            returnValue: <_i10.UserSummary>[],
           )
-          as List<_i8.UserSummary>);
+          as List<_i10.UserSummary>);
 
   @override
-  _i6.Future<void> clearAll() =>
+  _i7.Future<void> clearUsersPages() =>
+      (super.noSuchMethod(
+            Invocation.method(#clearUsersPages, []),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
+          )
+          as _i7.Future<void>);
+
+  @override
+  _i7.Future<void> clearAll() =>
       (super.noSuchMethod(
             Invocation.method(#clearAll, []),
-            returnValue: _i6.Future<void>.value(),
-            returnValueForMissingStub: _i6.Future<void>.value(),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
           )
-          as _i6.Future<void>);
+          as _i7.Future<void>);
 }
 
 /// A class which mocks [NetworkInfo].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockNetworkInfo extends _i1.Mock implements _i9.NetworkInfo {
+class MockNetworkInfo extends _i1.Mock implements _i11.NetworkInfo {
   MockNetworkInfo() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i6.Future<bool> get isConnected =>
+  _i7.Future<bool> get isConnected =>
       (super.noSuchMethod(
             Invocation.getter(#isConnected),
-            returnValue: _i6.Future<bool>.value(false),
+            returnValue: _i7.Future<bool>.value(false),
           )
-          as _i6.Future<bool>);
+          as _i7.Future<bool>);
 
   @override
-  _i6.Stream<bool> get onConnectivityChanged =>
+  _i7.Stream<bool> get onConnectivityChanged =>
       (super.noSuchMethod(
             Invocation.getter(#onConnectivityChanged),
-            returnValue: _i6.Stream<bool>.empty(),
+            returnValue: _i7.Stream<bool>.empty(),
           )
-          as _i6.Stream<bool>);
+          as _i7.Stream<bool>);
 }
 
 /// A class which mocks [UserRepository].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockUserRepository extends _i1.Mock implements _i10.UserRepository {
+class MockUserRepository extends _i1.Mock implements _i12.UserRepository {
   MockUserRepository() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i6.Future<_i4.Either<_i11.Failure, _i2.PaginatedUsers>> getUsers({
-    int? since,
+  _i7.Future<_i4.Either<_i13.Failure, _i2.PaginatedUsers>> getUsers({
+    Object? cursor,
     int? perPage,
     bool? forceRefresh,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#getUsers, [], {
-              #since: since,
+              #cursor: cursor,
               #perPage: perPage,
               #forceRefresh: forceRefresh,
             }),
             returnValue:
-                _i6.Future<_i4.Either<_i11.Failure, _i2.PaginatedUsers>>.value(
-                  _FakeEither_2<_i11.Failure, _i2.PaginatedUsers>(
+                _i7.Future<_i4.Either<_i13.Failure, _i2.PaginatedUsers>>.value(
+                  _FakeEither_2<_i13.Failure, _i2.PaginatedUsers>(
                     this,
                     Invocation.method(#getUsers, [], {
-                      #since: since,
+                      #cursor: cursor,
                       #perPage: perPage,
                       #forceRefresh: forceRefresh,
                     }),
                   ),
                 ),
           )
-          as _i6.Future<_i4.Either<_i11.Failure, _i2.PaginatedUsers>>);
+          as _i7.Future<_i4.Either<_i13.Failure, _i2.PaginatedUsers>>);
 
   @override
-  _i6.Future<_i4.Either<_i11.Failure, _i12.UserDetail>> getUserDetail(
-    String? login,
+  _i7.Future<_i4.Either<_i13.Failure, _i3.UserDetail>> getUserDetail(
+    String? detailId,
   ) =>
       (super.noSuchMethod(
-            Invocation.method(#getUserDetail, [login]),
+            Invocation.method(#getUserDetail, [detailId]),
             returnValue:
-                _i6.Future<_i4.Either<_i11.Failure, _i12.UserDetail>>.value(
-                  _FakeEither_2<_i11.Failure, _i12.UserDetail>(
+                _i7.Future<_i4.Either<_i13.Failure, _i3.UserDetail>>.value(
+                  _FakeEither_2<_i13.Failure, _i3.UserDetail>(
                     this,
-                    Invocation.method(#getUserDetail, [login]),
+                    Invocation.method(#getUserDetail, [detailId]),
                   ),
                 ),
           )
-          as _i6.Future<_i4.Either<_i11.Failure, _i12.UserDetail>>);
+          as _i7.Future<_i4.Either<_i13.Failure, _i3.UserDetail>>);
+
+  @override
+  _i7.Future<List<_i10.UserSummary>> getCachedUsers() =>
+      (super.noSuchMethod(
+            Invocation.method(#getCachedUsers, []),
+            returnValue: _i7.Future<List<_i10.UserSummary>>.value(
+              <_i10.UserSummary>[],
+            ),
+          )
+          as _i7.Future<List<_i10.UserSummary>>);
 }

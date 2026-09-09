@@ -3,6 +3,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../strings/users_strings.dart';
+
 import '../../../../core/theme/app_spacing.dart';
 
 /// What the end of the list is currently doing.
@@ -68,7 +70,7 @@ class PaginationFooter extends StatelessWidget {
           child: Column(
             children: <Widget>[
               Text(
-                errorMessage ?? "Couldn't load more",
+                errorMessage ?? UsersStrings.couldNotLoadMore,
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: theme.colorScheme.error),
@@ -78,7 +80,7 @@ class PaginationFooter extends StatelessWidget {
                 key: const Key('pagination_retry_button'),
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh, size: AppSizes.iconMd),
-                label: const Text('Retry'),
+                label: const Text(UsersStrings.retry),
               ),
             ],
           ),
@@ -90,7 +92,7 @@ class PaginationFooter extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
           child: Center(
             child: Text(
-              "You've reached the end",
+              UsersStrings.endOfList,
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: theme.colorScheme.outline),
             ),

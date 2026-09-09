@@ -3,6 +3,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../strings/users_strings.dart';
+
 import '../../../../core/theme/app_spacing.dart';
 import 'adaptive_centered_view.dart';
 
@@ -57,7 +59,7 @@ class ErrorView extends StatelessWidget {
               key: const Key('error_retry_button'),
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
-              label: const Text('Try again'),
+              label: const Text(UsersStrings.tryAgain),
             ),
           ],
       ),

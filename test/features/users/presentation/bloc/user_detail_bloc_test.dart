@@ -10,29 +10,12 @@ import 'package:elyx_digital_assignment/features/users/presentation/bloc/user_de
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
+import '../../../../helpers/entity_fixtures.dart';
 import '../../../../helpers/mocks.mocks.dart';
 
-const UserSummary _seed = UserSummary(
-  id: 1,
-  login: 'mojombo',
-  avatarUrl: 'https://avatars.githubusercontent.com/u/1?v=4',
-  htmlUrl: 'https://github.com/mojombo',
-  type: 'User',
-  siteAdmin: false,
-);
+final UserSummary _seed = reqresUser(2, first: 'Janet', last: 'Weaver');
 
-final UserDetail _detail = UserDetail(
-  id: 1,
-  login: 'mojombo',
-  avatarUrl: 'https://avatars.githubusercontent.com/u/1?v=4',
-  htmlUrl: 'https://github.com/mojombo',
-  publicRepos: 66,
-  followers: 23000,
-  following: 11,
-  createdAt: DateTime.utc(2007, 10, 20),
-  name: 'Tom Preston-Werner',
-  // email stays null: the common case, not an edge case. Constraint (c).
-);
+final UserDetail _detail = reqresDetail(2, first: 'Janet', last: 'Weaver');
 
 void main() {
   late MockUserRepository repository;
@@ -50,7 +33,7 @@ void main() {
 
     expect(bloc.state.status, UserDetailStatus.initial);
     expect(bloc.state.seed, _seed);
-    expect(bloc.state.login, 'mojombo');
+    expect(bloc.state.detailId, '2');
     expect(bloc.state.detail, isNull);
 
     bloc.close();
@@ -58,11 +41,11 @@ void main() {
 
   blocTest<UserDetailBloc, UserDetailState>(
     'emits loading then success, keeping the seed throughout',
-    setUp: () => when(repository.getUserDetail('mojombo'))
+    setUp: () => when(repository.getUserDetail('2'))
         .thenAnswer((_) async => Right<Failure, UserDetail>(_detail)),
     build: build,
     act: (UserDetailBloc bloc) =>
-        bloc.add(const UserDetailRequested('mojombo')),
+        bloc.add(const UserDetailRequested('2')),
     expect: () => <Matcher>[
       isA<UserDetailState>()
           .having((UserDetailState s) => s.status, 'status',
@@ -72,20 +55,22 @@ void main() {
           .having((UserDetailState s) => s.status, 'status',
               UserDetailStatus.success)
           .having((UserDetailState s) => s.detail?.displayName, 'displayName',
-              'Tom Preston-Werner')
-          .having((UserDetailState s) => s.detail?.hasEmail, 'hasEmail', false)
+              'Janet Weaver')
+          // reqres always returns an email -- unlike GitHub, where it is
+          // null for most accounts.
+          .having((UserDetailState s) => s.detail?.hasEmail, 'hasEmail', true)
           .having((UserDetailState s) => s.seed, 'seed still kept', _seed),
     ],
   );
 
   blocTest<UserDetailBloc, UserDetailState>(
     'a failure keeps the seed so the user still sees who they tapped',
-    setUp: () => when(repository.getUserDetail('mojombo')).thenAnswer(
+    setUp: () => when(repository.getUserDetail('2')).thenAnswer(
       (_) async => const Left<Failure, UserDetail>(NotFoundFailure()),
     ),
     build: build,
     act: (UserDetailBloc bloc) =>
-        bloc.add(const UserDetailRequested('mojombo')),
+        bloc.add(const UserDetailRequested('2')),
     skip: 1,
     expect: () => <Matcher>[
       isA<UserDetailState>()
@@ -99,14 +84,14 @@ void main() {
 
   blocTest<UserDetailBloc, UserDetailState>(
     'UserDetailRetried refetches using the seed login and recovers',
-    setUp: () => when(repository.getUserDetail('mojombo')).thenAnswer(
+    setUp: () => when(repository.getUserDetail('2')).thenAnswer(
       (_) async => const Left<Failure, UserDetail>(ServerFailure()),
     ),
     build: build,
     act: (UserDetailBloc bloc) async {
-      bloc.add(const UserDetailRequested('mojombo'));
+      bloc.add(const UserDetailRequested('2'));
       await Future<void>.delayed(Duration.zero);
-      when(repository.getUserDetail('mojombo'))
+      when(repository.getUserDetail('2'))
           .thenAnswer((_) async => Right<Failure, UserDetail>(_detail));
       bloc.add(const UserDetailRetried());
     },
@@ -123,14 +108,14 @@ void main() {
 
   blocTest<UserDetailBloc, UserDetailState>(
     'a rate limit exposes resetAt for the countdown (constraint d)',
-    setUp: () => when(repository.getUserDetail('mojombo')).thenAnswer(
+    setUp: () => when(repository.getUserDetail('2')).thenAnswer(
       (_) async => Left<Failure, UserDetail>(
         RateLimitFailure(resetAt: DateTime.utc(2026, 9, 9, 13)),
       ),
     ),
     build: build,
     act: (UserDetailBloc bloc) =>
-        bloc.add(const UserDetailRequested('mojombo')),
+        bloc.add(const UserDetailRequested('2')),
     skip: 1,
     expect: () => <Matcher>[
       isA<UserDetailState>().having(
@@ -143,7 +128,7 @@ void main() {
 
   blocTest<UserDetailBloc, UserDetailState>(
     'droppable(): a double-tapped Retry spends only one request',
-    setUp: () => when(repository.getUserDetail('mojombo')).thenAnswer(
+    setUp: () => when(repository.getUserDetail('2')).thenAnswer(
       (_) async {
         await Future<void>.delayed(const Duration(milliseconds: 50));
         return Right<Failure, UserDetail>(_detail);
@@ -155,12 +140,12 @@ void main() {
       ..add(const UserDetailRetried())
       ..add(const UserDetailRetried()),
     wait: const Duration(milliseconds: 120),
-    verify: (_) => verify(repository.getUserDetail('mojombo')).called(1),
+    verify: (_) => verify(repository.getUserDetail('2')).called(1),
   );
 
   blocTest<UserDetailBloc, UserDetailState>(
     'closing mid-request emits nothing (back navigation)',
-    setUp: () => when(repository.getUserDetail('mojombo')).thenAnswer(
+    setUp: () => when(repository.getUserDetail('2')).thenAnswer(
       (_) async {
         await Future<void>.delayed(const Duration(milliseconds: 50));
         return Right<Failure, UserDetail>(_detail);
@@ -168,7 +153,7 @@ void main() {
     ),
     build: build,
     act: (UserDetailBloc bloc) async {
-      bloc.add(const UserDetailRequested('mojombo'));
+      bloc.add(const UserDetailRequested('2'));
       await Future<void>.delayed(const Duration(milliseconds: 10));
       await bloc.close();
       await Future<void>.delayed(const Duration(milliseconds: 80));

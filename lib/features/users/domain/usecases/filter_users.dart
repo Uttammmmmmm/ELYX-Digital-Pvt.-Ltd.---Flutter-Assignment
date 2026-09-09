@@ -20,14 +20,14 @@ class FilterUsersParams extends Equatable {
   List<Object?> get props => <Object?>[users, query];
 }
 
-/// Filters loaded users by login.
+/// Filters loaded users by display name and email.
 ///
-/// CONSTRAINT (e): `GET /users` supports no name or login filter of any kind,
-/// so search is entirely client-side over what has already been paged in. It
-/// searches [UserSummary.login] because that is the only human-readable field
-/// the list endpoint returns -- names live behind one detail request per user
-/// (constraint b), and prefetching them would spend the whole hourly budget
-/// in six pages.
+/// Neither supported source offers a server-side name filter, so search is
+/// entirely client-side over what has already been paged in. It matches
+/// [UserSummary.displayName] -- which resolves to a real name on reqres and to
+/// the handle on GitHub, whose list response carries no name (constraint b) --
+/// and [UserSummary.email], because on reqres that is present and is a
+/// perfectly natural thing to search for.
 ///
 /// PURE AND SYNCHRONOUS: no repository, no I/O, no `Future`. Making callers
 /// `await` a computation that never suspends would be dishonest, and as a
@@ -53,9 +53,12 @@ class FilterUsers implements SyncUseCase<List<UserSummary>, FilterUsersParams> {
     // rebuild against a new-but-equal list.
     if (needle.isEmpty) return params.users;
 
-    return params.users
-        .where((UserSummary user) => _normalise(user.login).contains(needle))
-        .toList(growable: false);
+    return params.users.where((UserSummary user) {
+      if (_normalise(user.displayName).contains(needle)) return true;
+
+      final String? email = user.email;
+      return email != null && _normalise(email).contains(needle);
+    }).toList(growable: false);
   }
 
   /// Trim, collapse internal whitespace runs, lowercase.
@@ -64,21 +67,18 @@ class FilterUsers implements SyncUseCase<List<UserSummary>, FilterUsersParams> {
   /// the query is a classic source of "why doesn't this match" bugs.
   ///
   /// Collapsing internal runs means `"mo   jo"` and `"mo jo"` behave the
-  /// same. Worth knowing: GitHub logins cannot contain whitespace at all, so
-  /// any multi-word query correctly yields no matches. Collapsing does not
-  /// change that outcome; it makes it *consistent*, so a stray double space
-  /// can never behave differently from a single one.
+  /// same -- which matters now that display names can contain spaces
+  /// ("George Bluth"), so a double space between first and last name still
+  /// matches rather than silently failing.
   ///
   /// UNICODE / DIACRITICS -- chosen behaviour, stated rather than skipped:
-  /// diacritics are NOT folded. Searching `"jose"` will not match a login
-  /// containing `"josé"`. This is deliberate and safe here because GitHub
-  /// logins are restricted to ASCII alphanumerics and single hyphens, so a
-  /// login containing `é` cannot exist and folding would be unreachable code.
-  /// Dart also ships no Unicode normaliser in core, so folding would mean an
-  /// extra dependency to serve inputs the domain forbids. If search is ever
-  /// extended to display *names* -- which are free-form Unicode and where
-  /// `José` is entirely ordinary -- this decision must be revisited, and
-  /// that is the trigger to add proper NFD normalisation.
+  /// diacritics are NOT folded. Searching `"jose"` will not match `"José"`.
+  /// Dart ships no Unicode normaliser in core, so folding would mean an extra
+  /// dependency. This is now a REAL limitation rather than a theoretical one:
+  /// search covers display names, which are free-form Unicode, so a user with
+  /// an accented name is reachable only by typing the accent. Fixing it means
+  /// adding NFD normalisation, and it is the first thing I would change if
+  /// the dataset were not `reqres`'s twelve Anglophone names.
   ///
   /// [String.toLowerCase] uses the locale-INDEPENDENT Unicode default case
   /// mapping, which is what we want: a locale-sensitive lowercase would map

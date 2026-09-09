@@ -5,6 +5,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../strings/users_strings.dart';
+
 import '../../../../core/theme/app_spacing.dart';
 import 'adaptive_centered_view.dart';
 
@@ -82,10 +84,10 @@ class _RateLimitViewState extends State<RateLimitView> {
           children: <Widget>[
             Icon(Icons.hourglass_top, size: AppSizes.iconXl, color: theme.colorScheme.error),
             const SizedBox(height: AppSpacing.md),
-            Text('Rate limit reached', style: theme.textTheme.titleMedium),
+            Text(UsersStrings.rateLimitTitle, style: theme.textTheme.titleMedium),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'GitHub allows 60 requests per hour without a token.',
+              UsersStrings.rateLimitBody,
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
@@ -93,9 +95,11 @@ class _RateLimitViewState extends State<RateLimitView> {
             const SizedBox(height: AppSpacing.md),
             Text(
               canRetry
-                  ? 'You can try again now.'
-                  : 'Limit resets at ${formatClockTime(widget.resetAt)} '
-                      '(${formatCountdown(_remaining)})',
+                  ? UsersStrings.rateLimitReady
+                  : UsersStrings.rateLimitResetsAt(
+                      formatClockTime(widget.resetAt),
+                      formatCountdown(_remaining),
+                    ),
               key: const Key('rate_limit_reset_text'),
               textAlign: TextAlign.center,
               style: theme.textTheme.titleSmall?.copyWith(
@@ -110,13 +114,12 @@ class _RateLimitViewState extends State<RateLimitView> {
               // Null disables the button until the window reopens.
               onPressed: canRetry ? widget.onRetry : null,
               icon: const Icon(Icons.refresh),
-              label: const Text('Try again'),
+              label: const Text(UsersStrings.tryAgain),
             ),
             if (!ApiConstants.hasToken) ...<Widget>[
               const SizedBox(height: AppSpacing.lg),
               Text(
-                'Tip: run with --dart-define=GITHUB_TOKEN=<token> to raise the '
-                'limit to 5000 requests per hour.',
+                UsersStrings.rateLimitTokenTip,
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: theme.colorScheme.outline),

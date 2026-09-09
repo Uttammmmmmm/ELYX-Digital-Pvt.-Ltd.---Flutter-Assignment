@@ -5,7 +5,11 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../features/users/data/datasources/user_local_data_source.dart';
-import '../../features/users/data/datasources/user_remote_data_source.dart';
+import '../../features/users/data/datasources/api/api_source.dart';
+import '../../features/users/data/datasources/api/github_users_api.dart';
+import '../../features/users/data/datasources/api/link_header_parser.dart';
+import '../../features/users/data/datasources/api/reqres_users_api.dart';
+import '../../features/users/data/datasources/api/users_api.dart';
 import '../../features/users/data/repositories/user_repository_impl.dart';
 import '../../features/users/domain/entities/user_summary.dart';
 import '../../features/users/domain/repositories/user_repository.dart';
@@ -15,7 +19,6 @@ import '../../features/users/domain/usecases/get_users.dart';
 import '../../features/users/presentation/bloc/user_detail_bloc.dart';
 import '../../features/users/presentation/bloc/users_bloc.dart';
 import '../network/dio_client.dart';
-import '../network/link_header_parser.dart';
 import '../network/network_info.dart';
 import '../network/rate_limit_tracker.dart';
 import '../storage/hive_initializer.dart';
@@ -57,11 +60,6 @@ Future<void> init({required HiveBoxes boxes}) async {
   // ---------------------------------------------------------------------
   sl
     ..registerLazySingleton<RateLimitTracker>(RateLimitTracker.new)
-    // One Dio for the process: it owns the connection pool and the
-    // interceptor chain, both of which are wasteful to duplicate.
-    ..registerLazySingleton<DioClient>(
-      () => DioClient(rateLimitTracker: sl<RateLimitTracker>()),
-    )
     ..registerLazySingleton<Connectivity>(Connectivity.new)
     // Already-open boxes: a concrete instance, so registerSingleton, not lazy.
     ..registerSingleton<HiveBoxes>(boxes);
@@ -76,23 +74,45 @@ Future<void> init({required HiveBoxes boxes}) async {
     )
     ..registerLazySingleton<LinkHeaderParser>(LinkHeaderParser.new);
 
-  // ---------------------------------------------------------------------
-  // Data sources -- registered against their abstract types, so a fake can
-  // be substituted in tests without touching anything downstream.
-  // ---------------------------------------------------------------------
+  // -----------------------------------------------------------------------
+  // The data source. The brief's TEXT names reqres.in while its HYPERLINKS
+  // resolve to api.github.com, so both are implemented and selected here.
+  //
+  //   flutter run                                     -> reqres.in (default)
+  //   flutter run --dart-define=API_SOURCE=github     -> api.github.com
+  //
+  // Registered as the abstract UsersApi, so nothing downstream -- repository,
+  // use cases, blocs, widgets -- knows or can ask which one is active.
+  // -----------------------------------------------------------------------
   sl
-    ..registerLazySingleton<UserRemoteDataSource>(
-      () => UserRemoteDataSourceImpl(
-        client: sl<DioClient>(),
-        linkHeaderParser: sl<LinkHeaderParser>(),
+    // The CONFIG is registered before the client, and the client before the
+    // API. Reading the URL off the API instance instead would be a cycle:
+    // DioClient -> UsersApi -> DioClient, which get_it resolves lazily and so
+    // fails as a stack overflow on first use rather than at registration.
+    ..registerLazySingleton<ApiSourceConfig>(
+      () => ApiSource.fromName(kApiSource).config(reqresApiKey: kReqresApiKey),
+    )
+    // One Dio for the process: it owns the connection pool and the
+    // interceptor chain, both wasteful to duplicate.
+    ..registerLazySingleton<DioClient>(
+      () => DioClient(
+        rateLimitTracker: sl<RateLimitTracker>(),
+        baseUrl: sl<ApiSourceConfig>().baseUrl,
+        headers: sl<ApiSourceConfig>().headers,
       ),
     )
-    ..registerLazySingleton<UserLocalDataSource>(
+    ..registerLazySingleton<UsersApi>(_buildUsersApi);
+
+  // ---------------------------------------------------------------------
+  // Local cache -- registered against its abstract type, so a fake can be
+  // substituted in tests without touching anything downstream.
+  // ---------------------------------------------------------------------
+  sl.registerLazySingleton<UserLocalDataSource>(
       () => UserLocalDataSourceImpl(
         pagesBox: sl<HiveBoxes>().pages,
         detailsBox: sl<HiveBoxes>().details,
-      ),
-    );
+    ),
+  );
 
   // ---------------------------------------------------------------------
   // Repository -- registered as the ABSTRACT UserRepository, never as
@@ -103,7 +123,7 @@ Future<void> init({required HiveBoxes boxes}) async {
   // ---------------------------------------------------------------------
   sl.registerLazySingleton<UserRepository>(
     () => UserRepositoryImpl(
-      remote: sl<UserRemoteDataSource>(),
+      api: sl<UsersApi>(),
       local: sl<UserLocalDataSource>(),
       networkInfo: sl<NetworkInfo>(),
     ),
@@ -138,6 +158,7 @@ Future<void> init({required HiveBoxes boxes}) async {
       () => UsersBloc(
         getUsers: sl<GetUsers>(),
         filterUsers: sl<FilterUsers>(),
+        repository: sl<UserRepository>(),
       ),
     )
     // registerFactoryParam because the detail bloc needs the UserSummary the
@@ -150,6 +171,31 @@ Future<void> init({required HiveBoxes boxes}) async {
       ),
     );
 }
+
+/// Which backend to talk to, chosen at build time.
+///
+/// `reqres` is the default because the brief's prose names it; `github` is
+/// retained because the brief's links point there.
+const String kApiSource =
+    String.fromEnvironment('API_SOURCE', defaultValue: 'reqres');
+
+/// Builds the selected [UsersApi].
+///
+/// An unknown value falls back to the default rather than throwing: a typo in
+/// a build flag should not be a launch crash.
+UsersApi _buildUsersApi() => switch (kApiSource.toLowerCase()) {
+      'github' => GitHubUsersApi(
+          client: sl<DioClient>(),
+          linkHeaderParser: sl<LinkHeaderParser>(),
+        ),
+      _ => ReqresUsersApi(
+          client: sl<DioClient>(),
+          apiKey: const String.fromEnvironment(
+            ReqresUsersApi.apiKeyDefine,
+            defaultValue: ReqresUsersApi.defaultApiKey,
+          ),
+        ),
+    };
 
 /// Tears the graph down. Used between tests.
 Future<void> resetDependencies() => sl.reset();

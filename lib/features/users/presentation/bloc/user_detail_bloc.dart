@@ -29,24 +29,24 @@ class UserDetailBloc extends Bloc<UserDetailEvent, UserDetailState> {
     // must not spend two requests.
     on<UserDetailRequested>(
       (UserDetailRequested e, Emitter<UserDetailState> emit) =>
-          _load(emit, e.login),
+          _load(emit, e.detailId),
       transformer: dropWhileBusy(),
     );
 
     on<UserDetailRetried>(
       (UserDetailRetried e, Emitter<UserDetailState> emit) =>
-          _load(emit, state.login),
+          _load(emit, state.detailId),
       transformer: dropWhileBusy(),
     );
   }
 
   final GetUserDetail _getUserDetail;
 
-  Future<void> _load(Emitter<UserDetailState> emit, String login) async {
+  Future<void> _load(Emitter<UserDetailState> emit, String detailId) async {
     emit(state.copyWith(status: UserDetailStatus.loading, clearFailure: true));
 
     final Either<Failure, UserDetail> result =
-        await _getUserDetail(GetUserDetailParams(login));
+        await _getUserDetail(GetUserDetailParams(detailId));
 
     // Checked after the await, before emitting. A bloc closed while the
     // request was in flight -- the user tapped back before the profile

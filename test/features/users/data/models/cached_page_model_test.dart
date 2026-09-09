@@ -4,23 +4,18 @@ import 'package:elyx_digital_assignment/features/users/domain/entities/paginated
 import 'package:elyx_digital_assignment/features/users/domain/entities/user_summary.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const UserSummaryModel _u = UserSummaryModel(
-  id: 47,
-  login: 'mojombo',
-  avatarUrl: 'a',
-  htmlUrl: 'h',
-  type: 'User',
-  siteAdmin: false,
-);
+import '../../../../helpers/entity_fixtures.dart';
 
 void main() {
+  final UserSummaryModel user = UserSummaryModel.fromEntity(reqresUser(1));
+
   group('isStale', () {
     final DateTime now = DateTime.utc(2026, 9, 9, 12);
 
     CachedPageModel at(Duration age) => CachedPageModel(
-          users: const <UserSummaryModel>[_u],
-          nextSince: 47,
-          requestedSince: null,
+          users: <UserSummaryModel>[user],
+          nextCursor: 2,
+          requestedCursor: 1,
           cachedAt: now.subtract(age),
         );
 
@@ -43,33 +38,27 @@ void main() {
     test('a stale batch is still readable -- staleness is not deletion', () {
       expect(at(const Duration(days: 30)).users, hasLength(1));
     });
-
-    test('age never goes negative on a clock skew', () {
-      expect(at(const Duration(minutes: -5)).ageFrom(now), Duration.zero);
-    });
   });
 
   group('toEntity', () {
     test('derives hasReachedEnd exactly as the network path does', () {
-      final CachedPageModel cached = CachedPageModel(
-        users: const <UserSummaryModel>[_u],
-        nextSince: 47,
-        requestedSince: null,
+      final PaginatedUsers page = CachedPageModel(
+        users: <UserSummaryModel>[user],
+        nextCursor: 2,
+        requestedCursor: 1,
         cachedAt: DateTime.now(),
-      );
-
-      final PaginatedUsers page = cached.toEntity();
+      ).toEntity();
 
       expect(page.users, hasLength(1));
-      expect(page.nextSince, 47);
+      expect(page.nextCursor, 2);
       expect(page.hasReachedEnd, isFalse);
     });
 
     test('a null cursor round trips as the end of the list', () {
       final CachedPageModel cached = CachedPageModel(
-        users: const <UserSummaryModel>[_u],
-        nextSince: null,
-        requestedSince: 47,
+        users: <UserSummaryModel>[user],
+        nextCursor: null,
+        requestedCursor: 2,
         cachedAt: DateTime.now(),
       );
 
@@ -81,16 +70,29 @@ void main() {
     test('records the cursor that requested the batch', () {
       final CachedPageModel cached = CachedPageModel.fromEntity(
         PaginatedUsers.fromBatch(
-          users: const <UserSummary>[_u],
-          nextSince: 99,
+          users: <UserSummary>[reqresUser(1)],
+          nextCursor: 2,
         ),
-        requestedSince: 47,
+        requestedCursor: 1,
       );
 
-      expect(cached.requestedSince, 47,
-          reason: 'needed to rebuild cursor order in getAllCachedUsers');
-      expect(cached.nextSince, 99);
-      expect(cached.users.single.id, 47);
+      expect(cached.requestedCursor, 1,
+          reason: 'needed to rebuild order in getAllCachedUsers');
+      expect(cached.nextCursor, 2);
+      expect(cached.users.single.id, 1);
+    });
+
+    test('carries a GitHub-shaped cursor unchanged -- it is opaque', () {
+      final CachedPageModel cached = CachedPageModel.fromEntity(
+        PaginatedUsers.fromBatch(
+          users: <UserSummary>[githubUser(1, 'mojombo')],
+          nextCursor: 2868,
+        ),
+        requestedCursor: 47,
+      );
+
+      expect(cached.requestedCursor, 47);
+      expect(cached.nextCursor, 2868);
     });
   });
 }

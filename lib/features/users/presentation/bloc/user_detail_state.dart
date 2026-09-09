@@ -53,8 +53,11 @@ class UserDetailState extends Equatable {
   /// Why the load failed; non-null only alongside [UserDetailStatus.failure].
   final Failure? failure;
 
-  /// The login, always available even before the profile loads.
-  String get login => seed.login;
+  /// The source-specific detail key, available before the profile loads.
+  String get detailId => seed.detailId;
+
+  /// The name to show, available before the profile loads.
+  String get displayName => detail?.displayName ?? seed.displayName;
 
   /// True while the body should show a skeleton.
   bool get isLoadingBody =>

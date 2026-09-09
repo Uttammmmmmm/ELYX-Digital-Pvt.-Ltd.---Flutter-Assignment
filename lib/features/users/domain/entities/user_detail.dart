@@ -1,115 +1,95 @@
-/// The user as the DETAIL endpoint returns it.
+/// The user as a DETAIL endpoint returns it.
 library;
 
 import 'package:equatable/equatable.dart';
 
-/// A full profile from `GET /users/{login}`.
+import 'user_summary.dart';
+
+/// A full profile, in a shape neither API dictates.
 ///
-/// CONSTRAINT (c): [name], [email], [bio], [company], [location] and [blog]
-/// are nullable because GitHub genuinely returns null for them. `email` in
-/// particular is null for most accounts -- that is the common case, not an
-/// edge case. They are NOT given defaults here: substituting a fallback is a
-/// presentation decision, and an entity that invents data is an entity that
-/// lies to every consumer downstream.
+/// Composes [UserSummary] because the detail response of both sources is a
+/// superset of their list response. Everything GitHub-only ([bio], [company],
+/// [publicRepos] …) is nullable, because reqres simply does not return it —
+/// and the UI hides a null optional field rather than rendering a blank.
 ///
-/// THERE IS DELIBERATELY NO `phone` FIELD. The GitHub API exposes no phone
-/// number anywhere -- this is not a value that happens to be null, it is a
-/// concept the source system does not have. Modelling it as `String? phone`
-/// would assert that a phone number is *possible*, and every consumer would
-/// then have to handle a case that can never occur. The UI instead renders an
-/// explicit unavailable state ("Not provided by GitHub API"), styled so it
-/// cannot be mistaken for real data, sourced from a presentation constant
-/// rather than from this entity. Fabricating a plausible-looking number --
-/// deterministic or otherwise -- would be inventing data the API never gave us.
+/// THERE IS DELIBERATELY NO `phone` FIELD, AND THAT IS NOT AN OVERSIGHT.
+/// NEITHER API HAS ONE. reqres returns id, email, first_name, last_name and
+/// avatar; GitHub has no phone concept at any scope. The assignment asks for
+/// a phone number, so the detail screen renders an explicit unavailable state
+/// — never a fabricated value, not even a deterministic one, because a
+/// plausible-looking number is indistinguishable from real data to anyone
+/// reading the screen. Modelling `String? phone` would assert a phone is
+/// *possible*; omitting the field makes the fabrication unrepresentable.
 class UserDetail extends Equatable {
   const UserDetail({
-    required this.id,
-    required this.login,
-    required this.avatarUrl,
-    required this.htmlUrl,
-    required this.publicRepos,
-    required this.followers,
-    required this.following,
-    required this.createdAt,
-    this.name,
-    this.email,
+    required this.user,
     this.bio,
     this.company,
     this.location,
     this.blog,
+    this.publicRepos,
+    this.followers,
+    this.following,
+    this.createdAt,
   });
 
-  /// Numeric account id.
-  final int id;
+  /// The fields shared with the list representation.
+  final UserSummary user;
 
-  /// Unique handle. Always present, which is what makes [displayName] safe.
-  final String login;
-
-  /// Avatar image URL.
-  final String avatarUrl;
-
-  /// Public profile URL on github.com.
-  final String htmlUrl;
-
-  /// Public repository count.
-  final int publicRepos;
-
-  /// Follower count.
-  final int followers;
-
-  /// Following count.
-  final int following;
-
-  /// Account creation timestamp.
-  final DateTime createdAt;
-
-  /// Display name. Null when the user never set one.
-  final String? name;
-
-  /// Public email. Null for most users -- hidden by default.
-  final String? email;
-
-  /// Profile bio.
+  /// Profile bio. GitHub only.
   final String? bio;
 
-  /// Self-reported company.
+  /// Self-reported company. GitHub only.
   final String? company;
 
-  /// Self-reported location, free text.
+  /// Self-reported location. GitHub only.
   final String? location;
 
-  /// Personal site URL.
+  /// Personal site URL. GitHub only.
   final String? blog;
 
-  /// The name to show in a header, falling back to the handle.
-  ///
-  /// Cannot return empty: [login] is always present. This lives on the entity
-  /// rather than in the UI because "a user is identified by their name, or
-  /// their handle if they have no name" is a rule about the domain, not about
-  /// any one screen -- a second client would make the same choice.
-  String get displayName => name ?? login;
+  /// Public repository count. GitHub only.
+  final int? publicRepos;
 
-  /// Whether a public email exists to render or link.
+  /// Follower count. GitHub only.
+  final int? followers;
+
+  /// Following count. GitHub only.
+  final int? following;
+
+  /// Account creation time. GitHub only.
+  final DateTime? createdAt;
+
+  /// Passthroughs, so callers need not reach through [user].
+  int get id => user.id;
+  String get avatarUrl => user.avatarUrl;
+  String? get handle => user.handle;
+  String? get email => user.email;
+  String? get profileUrl => user.profileUrl;
+
+  /// The name to show. Never empty.
+  String get displayName => user.displayName;
+
+  /// Whether an email exists to render or copy.
+  bool get hasEmail => email != null && email!.trim().isNotEmpty;
+
+  /// Whether this source provided the public counters at all.
   ///
-  /// Saves every call site from repeating a null check and, more usefully,
-  /// gives the absence a name.
-  bool get hasEmail => email != null;
+  /// False for reqres, whose profile has no stats — the row is hidden rather
+  /// than rendered as three zeros, which would be fabricated data.
+  bool get hasStats =>
+      publicRepos != null || followers != null || following != null;
 
   @override
   List<Object?> get props => <Object?>[
-        id,
-        login,
-        avatarUrl,
-        htmlUrl,
-        publicRepos,
-        followers,
-        following,
-        createdAt,
-        name,
-        email,
+        user,
         bio,
         company,
         location,
         blog,
+        publicRepos,
+        followers,
+        following,
+        createdAt,
       ];
 }

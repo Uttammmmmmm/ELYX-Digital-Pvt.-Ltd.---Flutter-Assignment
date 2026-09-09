@@ -17,57 +17,42 @@ class UserDetailModelAdapter extends TypeAdapter<UserDetailModel> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return UserDetailModel(
-      id: (fields[0] as num).toInt(),
-      login: fields[1] as String,
-      avatarUrl: fields[2] as String,
-      htmlUrl: fields[3] as String,
-      publicRepos: (fields[4] as num).toInt(),
-      followers: (fields[5] as num).toInt(),
-      following: (fields[6] as num).toInt(),
-      createdAt: fields[7] as DateTime,
-      name: fields[8] as String?,
-      email: fields[9] as String?,
-      bio: fields[10] as String?,
-      company: fields[11] as String?,
-      location: fields[12] as String?,
-      blog: fields[13] as String?,
-      cachedAt: fields[14] as DateTime?,
+      user: fields[0] as UserSummaryModel,
+      bio: fields[1] as String?,
+      company: fields[2] as String?,
+      location: fields[3] as String?,
+      blog: fields[4] as String?,
+      publicRepos: (fields[5] as num?)?.toInt(),
+      followers: (fields[6] as num?)?.toInt(),
+      following: (fields[7] as num?)?.toInt(),
+      createdAt: fields[8] as DateTime?,
+      cachedAt: fields[9] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserDetailModel obj) {
     writer
-      ..writeByte(15)
-      ..writeByte(0)
-      ..write(obj.id)
-      ..writeByte(1)
-      ..write(obj.login)
-      ..writeByte(2)
-      ..write(obj.avatarUrl)
-      ..writeByte(3)
-      ..write(obj.htmlUrl)
-      ..writeByte(4)
-      ..write(obj.publicRepos)
-      ..writeByte(5)
-      ..write(obj.followers)
-      ..writeByte(6)
-      ..write(obj.following)
-      ..writeByte(7)
-      ..write(obj.createdAt)
-      ..writeByte(8)
-      ..write(obj.name)
-      ..writeByte(9)
-      ..write(obj.email)
       ..writeByte(10)
+      ..writeByte(0)
+      ..write(obj.user)
+      ..writeByte(1)
       ..write(obj.bio)
-      ..writeByte(11)
+      ..writeByte(2)
       ..write(obj.company)
-      ..writeByte(12)
+      ..writeByte(3)
       ..write(obj.location)
-      ..writeByte(13)
+      ..writeByte(4)
       ..write(obj.blog)
-      ..writeByte(14)
+      ..writeByte(5)
+      ..write(obj.publicRepos)
+      ..writeByte(6)
+      ..write(obj.followers)
+      ..writeByte(7)
+      ..write(obj.following)
+      ..writeByte(8)
+      ..write(obj.createdAt)
+      ..writeByte(9)
       ..write(obj.cachedAt);
   }
 

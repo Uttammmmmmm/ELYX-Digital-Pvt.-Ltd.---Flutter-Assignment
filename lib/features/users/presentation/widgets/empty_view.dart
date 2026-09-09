@@ -3,6 +3,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../strings/users_strings.dart';
+
 import '../../../../core/theme/app_spacing.dart';
 import 'adaptive_centered_view.dart';
 
@@ -29,10 +31,10 @@ class EmptyView extends StatelessWidget {
           children: <Widget>[
             Icon(Icons.people_outline, size: AppSizes.iconXl, color: theme.colorScheme.outline),
             const SizedBox(height: AppSpacing.md),
-            Text('No users available', style: theme.textTheme.titleMedium),
+            Text(UsersStrings.emptyTitle, style: theme.textTheme.titleMedium),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'GitHub returned no users for this request.',
+              UsersStrings.emptyBody,
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
@@ -42,7 +44,7 @@ class EmptyView extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: onRefresh,
                 icon: const Icon(Icons.refresh, size: AppSizes.iconMd),
-                label: const Text('Refresh'),
+                label: const Text(UsersStrings.refresh),
               ),
             ],
           ],

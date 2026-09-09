@@ -24,9 +24,6 @@ enum WindowSizeClass {
     return WindowSizeClass.expanded;
   }
 
-  /// True for anything wider than a phone in portrait.
-  bool get isWide => this != WindowSizeClass.compact;
-
   /// Grid columns appropriate to this class.
   int get gridColumns => switch (this) {
         WindowSizeClass.compact => 1,

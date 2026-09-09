@@ -3,6 +3,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../strings/users_strings.dart';
+
 /// Text field that reports query changes and clears.
 ///
 /// NO DEBOUNCE HERE. The bloc's `restartable() + 300ms` transformer owns that
@@ -17,7 +19,7 @@ class UserSearchBar extends StatelessWidget {
     required this.controller,
     required this.onChanged,
     required this.onCleared,
-    this.hintText = 'Search loaded users',
+    this.hintText = UsersStrings.searchHint,
     super.key,
   });
 
@@ -56,7 +58,7 @@ class UserSearchBar extends StatelessWidget {
                   : IconButton(
                       key: const Key('search_clear_button'),
                       icon: const Icon(Icons.clear),
-                      tooltip: 'Clear search',
+                      tooltip: UsersStrings.clearSearchTooltip,
                       onPressed: () {
                         controller.clear();
                         onCleared();

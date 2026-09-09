@@ -11,13 +11,14 @@ import '../repositories/user_repository.dart';
 
 /// Arguments for [GetUserDetail].
 class GetUserDetailParams extends Equatable {
-  const GetUserDetailParams(this.login);
+  const GetUserDetailParams(this.detailId);
 
-  /// The handle to fetch. Validated by the use case before any I/O.
-  final String login;
+  /// The source-specific detail key, from [UserSummary.detailId]. Validated
+  /// by the use case before any I/O.
+  final String detailId;
 
   @override
-  List<Object?> get props => <Object?>[login];
+  List<Object?> get props => <Object?>[detailId];
 }
 
 /// Fetches one user's profile, rejecting a blank handle before any request.
@@ -35,12 +36,12 @@ class GetUserDetail implements UseCase<UserDetail, GetUserDetailParams> {
 
   @override
   Future<Either<Failure, UserDetail>> call(GetUserDetailParams params) async {
-    final String login = params.login.trim();
-    if (login.isEmpty) {
+    final String detailId = params.detailId.trim();
+    if (detailId.isEmpty) {
       return const Left<Failure, UserDetail>(
-        ValidationFailure('A GitHub username is required.'),
+        ValidationFailure('A user id is required.'),
       );
     }
-    return _repository.getUserDetail(login);
+    return _repository.getUserDetail(detailId);
   }
 }

@@ -18,11 +18,11 @@ import '../../../../helpers/widget_harness.dart';
 
 const UserSummary _user = UserSummary(
   id: 1,
-  login: 'mojombo',
+  detailId: 'mojombo',
+      handle: 'mojombo',
   avatarUrl: 'https://avatars.githubusercontent.com/u/1?v=4',
-  htmlUrl: 'https://github.com/mojombo',
-  type: 'User',
-  siteAdmin: false,
+  profileUrl: 'https://github.com/mojombo',
+  accountType: 'User',
 );
 
 /// Each state widget in isolation, found by the Keys the pages rely on.
@@ -254,7 +254,7 @@ void main() {
   });
 
   group('UserListTile', () {
-    testWidgets('renders login, id and type, and fires onTap', (
+    testWidgets('renders the display name and identifier, and fires onTap', (
       WidgetTester tester,
     ) async {
       bool tapped = false;
@@ -263,8 +263,10 @@ void main() {
         UserListTile(user: _user, onTap: () => tapped = true),
       );
 
+      // A GitHub-shaped user has no name, so displayName is the handle and
+      // the subtitle repeats it as the @handle.
       expect(find.text('mojombo'), findsOneWidget);
-      expect(find.text('id 1 · User'), findsOneWidget);
+      expect(find.text('@mojombo'), findsOneWidget);
 
       await tester.tap(find.byType(UserListTile));
       expect(tapped, isTrue);
@@ -279,11 +281,11 @@ void main() {
           // 39 characters is GitHub's maximum login length.
           user: const UserSummary(
             id: 2,
-            login: 'a-very-long-github-login-name-abcdefghi',
+            detailId: 'a-very-long-github-login-name-abcdefghi',
+      handle: 'a-very-long-github-login-name-abcdefghi',
             avatarUrl: '',
-            htmlUrl: '',
-            type: 'User',
-            siteAdmin: false,
+            profileUrl: '',
+            accountType: 'User',
           ),
           onTap: () {},
         ),
@@ -305,11 +307,11 @@ void main() {
         UserListTile(
           user: const UserSummary(
             id: 3,
-            login: 'github',
+            detailId: 'github',
+      handle: 'github',
             avatarUrl: '',
-            htmlUrl: '',
-            type: 'Organization',
-            siteAdmin: false,
+            profileUrl: '',
+            accountType: 'Organization',
           ),
           onTap: () {},
         ),

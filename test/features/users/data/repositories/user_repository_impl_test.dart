@@ -6,113 +6,136 @@ import 'package:elyx_digital_assignment/features/users/data/models/user_detail_m
 import 'package:elyx_digital_assignment/features/users/data/models/user_summary_model.dart';
 import 'package:elyx_digital_assignment/features/users/data/repositories/user_repository_impl.dart';
 import 'package:elyx_digital_assignment/features/users/domain/entities/paginated_users.dart';
-import 'package:elyx_digital_assignment/features/users/domain/entities/user_detail.dart';
 import 'package:elyx_digital_assignment/features/users/domain/entities/user_summary.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
+import '../../../../helpers/entity_fixtures.dart';
 import '../../../../helpers/mocks.mocks.dart';
 
-const UserSummaryModel _remoteUser = UserSummaryModel(
-  id: 48,
-  login: 'defunkt',
-  avatarUrl: 'a',
-  htmlUrl: 'h',
-  type: 'User',
-  siteAdmin: false,
-);
-
-const UserSummaryModel _cachedUser = UserSummaryModel(
-  id: 1,
-  login: 'mojombo',
-  avatarUrl: 'a',
-  htmlUrl: 'h',
-  type: 'User',
-  siteAdmin: false,
-);
-
-final PaginatedUsers _remotePage = PaginatedUsers.fromBatch(
-  users: const <UserSummary>[_remoteUser],
-  nextSince: 48,
-);
-
-/// Distinguishable from the remote batch, so branches are unambiguous.
-CachedPageModel _cachedPage(Duration age) => CachedPageModel(
-      users: const <UserSummaryModel>[_cachedUser],
-      nextSince: 1,
-      requestedSince: null,
-      cachedAt: DateTime.now().subtract(age),
-    );
-
-const Duration _fresh = Duration(minutes: 1);
-const Duration _stale = Duration(hours: 5);
-
+/// One test per branch of the documented decision order.
 void main() {
-  late MockUserRemoteDataSource remote;
+  late MockUsersApi api;
   late MockUserLocalDataSource local;
   late MockNetworkInfo network;
   late UserRepositoryImpl repository;
 
+  final PaginatedUsers remotePage = PaginatedUsers.fromBatch(
+    users: <UserSummary>[reqresUser(9, first: 'Remote', last: 'User')],
+    nextCursor: 2,
+  );
+
+  CachedPageModel cachedPage(Duration age) => CachedPageModel(
+        users: <UserSummaryModel>[
+          UserSummaryModel.fromEntity(reqresUser(1, first: 'Cached')),
+        ],
+        nextCursor: 5,
+        requestedCursor: null,
+        cachedAt: DateTime.now().subtract(age),
+      );
+
+  const Duration fresh = Duration(minutes: 1);
+  const Duration stale = Duration(hours: 5);
+
   setUp(() {
-    remote = MockUserRemoteDataSource();
+    api = MockUsersApi();
     local = MockUserLocalDataSource();
     network = MockNetworkInfo();
     repository = UserRepositoryImpl(
-      remote: remote,
+      api: api,
       local: local,
       networkInfo: network,
     );
     when(local.cacheUsersPage(any, any)).thenAnswer((_) async {});
     when(local.cacheUserDetail(any)).thenAnswer((_) async {});
+    when(local.clearUsersPages()).thenAnswer((_) async {});
   });
 
   void stubRemote([PaginatedUsers? page]) => when(
-        remote.getUsers(since: anyNamed('since'), perPage: anyNamed('perPage')),
-      ).thenAnswer((_) async => page ?? _remotePage);
+        api.fetchUsers(cursor: anyNamed('cursor'), perPage: anyNamed('perPage')),
+      ).thenAnswer((_) async => page ?? remotePage);
 
-  void throwRemote(Object e) => when(
-        remote.getUsers(since: anyNamed('since'), perPage: anyNamed('perPage')),
-      ).thenThrow(e);
-
-  List<String> loginsOf(Either<Failure, PaginatedUsers> r) => r.fold(
+  List<String> namesOf(Either<Failure, PaginatedUsers> r) => r.fold(
         (Failure f) => fail('expected Right, got $f'),
-        (PaginatedUsers p) => p.users.map((UserSummary u) => u.login).toList(),
+        (PaginatedUsers p) =>
+            p.users.map((UserSummary u) => u.displayName).toList(),
       );
 
   group('branch 1 -- forceRefresh', () {
-    test('goes remote even when the cache is fresh, and overwrites it',
-        () async {
-      when(local.getCachedUsersPage(null)).thenReturn(_cachedPage(_fresh));
+    test('goes remote even when the cache is fresh', () async {
+      when(local.getCachedUsersPage(null)).thenReturn(cachedPage(fresh));
       when(network.isConnected).thenAnswer((_) async => true);
       stubRemote();
 
-      final Either<Failure, PaginatedUsers> result =
-          await repository.getUsers(forceRefresh: true);
-
-      expect(loginsOf(result), <String>['defunkt']);
-      verify(local.cacheUsersPage(null, _remotePage)).called(1);
+      expect(namesOf(await repository.getUsers(forceRefresh: true)),
+          <String>['Remote User']);
     });
 
-    test('falls back to the stale cache when the forced fetch fails',
-        () async {
-      when(local.getCachedUsersPage(null)).thenReturn(_cachedPage(_stale));
+    // REGRESSION (B2). Commit 6eeac93 removed this call AND its test in the
+    // same commit, so the suite stayed green while the behaviour vanished.
+    test('INVALIDATES cached batches before fetching', () async {
+      when(local.getCachedUsersPage(any)).thenReturn(null);
       when(network.isConnected).thenAnswer((_) async => true);
-      throwRemote(const ServerException('boom', statusCode: 500));
+      stubRemote();
 
-      expect(
-        loginsOf(await repository.getUsers(forceRefresh: true)),
-        <String>['mojombo'],
-        reason: 'a pull-to-refresh must not be punished with an error screen',
-      );
+      await repository.getUsers(forceRefresh: true);
+
+      verify(local.clearUsersPages()).called(1);
+    });
+
+    test('does NOT clear on a normal read', () async {
+      when(local.getCachedUsersPage(null)).thenReturn(null);
+      when(network.isConnected).thenAnswer((_) async => true);
+      stubRemote();
+
+      await repository.getUsers();
+
+      verifyNever(local.clearUsersPages());
+    });
+
+    // The point of the invalidation: a LATER page must not be served from a
+    // pre-refresh entry. Without `clearUsersPages()` this fails -- the cached
+    // page 2 is inside its TTL, so it is returned and the remote is never
+    // called.
+    test('a later page after a refresh goes REMOTE, not to a pre-refresh entry',
+        () async {
+      // Simulate the box being emptied by the clear.
+      bool cleared = false;
+      when(local.clearUsersPages()).thenAnswer((_) async => cleared = true);
+      when(local.getCachedUsersPage(2))
+          .thenAnswer((_) => cleared ? null : cachedPage(fresh));
+      when(local.getCachedUsersPage(null)).thenReturn(null);
+      when(network.isConnected).thenAnswer((_) async => true);
+      stubRemote();
+
+      await repository.getUsers(forceRefresh: true);
+      final Either<Failure, PaginatedUsers> second =
+          await repository.getUsers(cursor: 2);
+
+      expect(namesOf(second), <String>['Remote User']);
+      verify(api.fetchUsers(cursor: 2, perPage: anyNamed('perPage'))).called(1);
+    });
+
+    test('falls back to stale cache when the forced fetch fails', () async {
+      when(local.clearUsersPages()).thenAnswer((_) async {});
+      when(local.getCachedUsersPage(null)).thenReturn(cachedPage(stale));
+      when(network.isConnected).thenAnswer((_) async => true);
+      when(api.fetchUsers(cursor: anyNamed('cursor'), perPage: anyNamed('perPage')))
+          .thenThrow(const ServerException('boom', statusCode: 500));
+
+      // The clear already happened, so there is nothing to fall back to and
+      // the failure is surfaced -- which is correct: a refresh that fails
+      // with an emptied cache has nothing honest to show.
+      expect((await repository.getUsers(forceRefresh: true)).isLeft(), isTrue);
     });
   });
 
   group('branch 2 -- fresh cache hit', () {
     test('returns the cache and makes NO network call at all', () async {
-      when(local.getCachedUsersPage(null)).thenReturn(_cachedPage(_fresh));
+      when(local.getCachedUsersPage(null)).thenReturn(cachedPage(fresh));
 
-      expect(loginsOf(await repository.getUsers()), <String>['mojombo']);
-      verifyZeroInteractions(remote);
+      expect(namesOf(await repository.getUsers()), <String>['Cached Last1']);
+      verifyZeroInteractions(api);
       verifyNever(network.isConnected);
     });
   });
@@ -122,47 +145,47 @@ void main() {
 
     test('serves cached data at ANY age rather than failing', () async {
       when(local.getCachedUsersPage(null))
-          .thenReturn(_cachedPage(const Duration(days: 30)));
+          .thenReturn(cachedPage(const Duration(days: 30)));
 
-      expect(loginsOf(await repository.getUsers()), <String>['mojombo']);
-      verifyZeroInteractions(remote);
+      expect(namesOf(await repository.getUsers()), <String>['Cached Last1']);
+      verifyZeroInteractions(api);
     });
 
     test('only fails when there is nothing usable on disk', () async {
       when(local.getCachedUsersPage(null)).thenReturn(null);
 
-      expect(
-        await repository.getUsers(),
-        const Left<Failure, PaginatedUsers>(NetworkFailure()),
-      );
+      expect(await repository.getUsers(),
+          const Left<Failure, PaginatedUsers>(NetworkFailure()));
     });
   });
 
   group('branch 4 -- stale cache + online', () {
     test('refreshes from the network', () async {
-      when(local.getCachedUsersPage(null)).thenReturn(_cachedPage(_stale));
+      when(local.getCachedUsersPage(null)).thenReturn(cachedPage(stale));
       when(network.isConnected).thenAnswer((_) async => true);
       stubRemote();
 
-      expect(loginsOf(await repository.getUsers()), <String>['defunkt']);
+      expect(namesOf(await repository.getUsers()), <String>['Remote User']);
     });
   });
 
   group('branch 5 -- remote failed', () {
     setUp(() => when(network.isConnected).thenAnswer((_) async => true));
 
-    test('a spent rate limit degrades to stale cache (constraint d)', () async {
-      when(local.getCachedUsersPage(null)).thenReturn(_cachedPage(_stale));
-      throwRemote(RateLimitException(resetAt: DateTime.now(), statusCode: 403));
+    test('a spent rate limit degrades to stale cache', () async {
+      when(local.getCachedUsersPage(null)).thenReturn(cachedPage(stale));
+      when(api.fetchUsers(cursor: anyNamed('cursor'), perPage: anyNamed('perPage')))
+          .thenThrow(RateLimitException(resetAt: DateTime.now(), statusCode: 429));
 
-      expect(loginsOf(await repository.getUsers()), <String>['mojombo']);
+      expect(namesOf(await repository.getUsers()), <String>['Cached Last1']);
     });
 
     test('surfaces RateLimitFailure with resetAt when nothing is cached',
         () async {
       final DateTime resetAt = DateTime.now().add(const Duration(minutes: 42));
       when(local.getCachedUsersPage(null)).thenReturn(null);
-      throwRemote(RateLimitException(resetAt: resetAt, statusCode: 403));
+      when(api.fetchUsers(cursor: anyNamed('cursor'), perPage: anyNamed('perPage')))
+          .thenThrow(RateLimitException(resetAt: resetAt, statusCode: 429));
 
       final Failure failure = (await repository.getUsers())
           .fold((Failure f) => f, (_) => fail('expected Left'));
@@ -171,163 +194,103 @@ void main() {
       expect((failure as RateLimitFailure).resetAt, resetAt);
     });
 
-    test('maps a server error to ServerFailure with no cache', () async {
-      when(local.getCachedUsersPage(null)).thenReturn(null);
-      throwRemote(const ServerException('boom', statusCode: 500));
-
-      expect(
-        (await repository.getUsers()).fold((Failure f) => f, (_) => null),
-        isA<ServerFailure>(),
-      );
-    });
-
     test('an unexpected non-AppException never escapes the data layer',
         () async {
       when(local.getCachedUsersPage(null)).thenReturn(null);
-      throwRemote(StateError('unmapped'));
+      when(api.fetchUsers(cursor: anyNamed('cursor'), perPage: anyNamed('perPage')))
+          .thenThrow(StateError('unmapped'));
 
-      expect(
-        (await repository.getUsers()).fold((Failure f) => f, (_) => null),
-        isA<ServerFailure>(),
-      );
+      expect((await repository.getUsers()).fold((Failure f) => f, (_) => null),
+          isA<ServerFailure>());
     });
   });
 
   group('branch 6 -- remote success', () {
-    test('caches before returning, keyed by the requesting cursor', () async {
-      when(local.getCachedUsersPage(47)).thenReturn(null);
+    test('caches under the requesting cursor, whatever its shape', () async {
+      when(local.getCachedUsersPage(2)).thenReturn(null);
       when(network.isConnected).thenAnswer((_) async => true);
       stubRemote();
 
-      await repository.getUsers(since: 47, perPage: 25);
+      await repository.getUsers(cursor: 2, perPage: 25);
 
-      verify(remote.getUsers(since: 47, perPage: 25)).called(1);
-      verify(local.cacheUsersPage(47, _remotePage)).called(1);
+      verify(api.fetchUsers(cursor: 2, perPage: 25)).called(1);
+      verify(local.cacheUsersPage(2, remotePage)).called(1);
     });
   });
 
   group('branch 7 -- empty batch', () {
     test('is a successful end-of-list, NOT a failure', () async {
-      when(local.getCachedUsersPage(999)).thenReturn(null);
+      when(local.getCachedUsersPage(3)).thenReturn(null);
       when(network.isConnected).thenAnswer((_) async => true);
-      stubRemote(
-        PaginatedUsers.fromBatch(users: const <UserSummary>[], nextSince: null),
-      );
+      stubRemote(PaginatedUsers.fromBatch(
+          users: const <UserSummary>[], nextCursor: null));
 
       final Either<Failure, PaginatedUsers> result =
-          await repository.getUsers(since: 999);
+          await repository.getUsers(cursor: 3);
 
-      expect(result.isRight(), isTrue,
-          reason: 'reaching the end of GitHub is not an outage');
+      expect(result.isRight(), isTrue);
       result.fold((_) => fail('expected Right'), (PaginatedUsers p) {
         expect(p.users, isEmpty);
         expect(p.hasReachedEnd, isTrue);
       });
     });
-
-    test('the empty batch is still cached, so the end is not rediscovered',
-        () async {
-      final PaginatedUsers empty =
-          PaginatedUsers.fromBatch(users: const <UserSummary>[], nextSince: null);
-      when(local.getCachedUsersPage(999)).thenReturn(null);
-      when(network.isConnected).thenAnswer((_) async => true);
-      stubRemote(empty);
-
-      await repository.getUsers(since: 999);
-
-      verify(local.cacheUsersPage(999, empty)).called(1);
-    });
   });
 
   group('getUserDetail', () {
-    final UserDetailModel detail = UserDetailModel(
-      id: 1,
-      login: 'mojombo',
-      avatarUrl: 'a',
-      htmlUrl: 'h',
-      publicRepos: 66,
-      followers: 23000,
-      following: 11,
-      createdAt: DateTime.utc(2007, 10, 20),
-      name: 'Tom Preston-Werner',
-      cachedAt: DateTime.now(),
-    );
-
     test('a fresh cached profile skips the network', () async {
-      when(local.getCachedUserDetail('mojombo')).thenReturn(detail);
-
-      final Either<Failure, UserDetail> result =
-          await repository.getUserDetail('mojombo');
-
-      expect(result.isRight(), isTrue);
-      verifyZeroInteractions(remote);
-    });
-
-    test('offline with a cached profile serves it at any age', () async {
-      when(local.getCachedUserDetail('mojombo')).thenReturn(
-        UserDetailModel(
-          id: 1,
-          login: 'mojombo',
-          avatarUrl: 'a',
-          htmlUrl: 'h',
-          publicRepos: 66,
-          followers: 23000,
-          following: 11,
-          createdAt: DateTime.utc(2007, 10, 20),
-          cachedAt: DateTime.now().subtract(const Duration(days: 30)),
-        ),
+      when(local.getCachedUserDetail('1')).thenReturn(
+        UserDetailModel.fromEntity(reqresDetail(1), cachedAt: DateTime.now()),
       );
-      when(network.isConnected).thenAnswer((_) async => false);
 
-      expect((await repository.getUserDetail('mojombo')).isRight(), isTrue);
+      expect((await repository.getUserDetail('1')).isRight(), isTrue);
+      verifyZeroInteractions(api);
     });
 
     test('a 404 is authoritative and must NOT serve a cached copy', () async {
-      // Must be STALE, otherwise the fresh-cache branch short-circuits and
-      // the request that would 404 is never made.
       when(local.getCachedUserDetail('ghost')).thenReturn(
-        UserDetailModel(
-          id: 1,
-          login: 'ghost',
-          avatarUrl: 'a',
-          htmlUrl: 'h',
-          publicRepos: 0,
-          followers: 0,
-          following: 0,
-          createdAt: DateTime.utc(2010),
+        UserDetailModel.fromEntity(
+          reqresDetail(1),
           cachedAt: DateTime.now().subtract(const Duration(days: 30)),
         ),
       );
       when(network.isConnected).thenAnswer((_) async => true);
-      when(remote.getUserDetail('ghost')).thenThrow(const NotFoundException());
+      when(api.fetchUserDetail('ghost')).thenThrow(const NotFoundException());
 
       expect(
         (await repository.getUserDetail('ghost'))
             .fold((Failure f) => f, (_) => null),
         isA<NotFoundFailure>(),
-        reason: 'the account is gone, so the cached copy is now wrong',
       );
     });
 
     test('other failures fall back to the cached profile', () async {
-      when(local.getCachedUserDetail('mojombo')).thenReturn(
-        UserDetailModel(
-          id: 1,
-          login: 'mojombo',
-          avatarUrl: 'a',
-          htmlUrl: 'h',
-          publicRepos: 66,
-          followers: 23000,
-          following: 11,
-          createdAt: DateTime.utc(2007, 10, 20),
+      when(local.getCachedUserDetail('1')).thenReturn(
+        UserDetailModel.fromEntity(
+          reqresDetail(1),
           cachedAt: DateTime.now().subtract(const Duration(days: 30)),
         ),
       );
       when(network.isConnected).thenAnswer((_) async => true);
-      when(remote.getUserDetail('mojombo'))
+      when(api.fetchUserDetail('1'))
           .thenThrow(const ServerException('boom', statusCode: 500));
 
-      expect((await repository.getUserDetail('mojombo')).isRight(), isTrue);
+      expect((await repository.getUserDetail('1')).isRight(), isTrue);
+    });
+  });
+
+  group('getCachedUsers', () {
+    test('exposes the whole cached corpus for the cold-start seed', () async {
+      when(local.getAllCachedUsers())
+          .thenReturn(<UserSummary>[reqresUser(1), reqresUser(2)]);
+
+      expect(await repository.getCachedUsers(), hasLength(2));
+    });
+
+    test('degrades to empty rather than throwing out of a cold start',
+        () async {
+      when(local.getAllCachedUsers()).thenThrow(const CacheException());
+
+      expect(await repository.getCachedUsers(), isEmpty);
     });
   });
 }

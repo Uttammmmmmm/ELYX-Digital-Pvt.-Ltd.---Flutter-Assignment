@@ -31,11 +31,11 @@ import '../../../../helpers/widget_harness.dart';
 
 UserSummary _u(int id, String login) => UserSummary(
       id: id,
-      login: login,
+      detailId: login,
+      handle: login,
       avatarUrl: 'https://avatars.githubusercontent.com/u/$id?v=4',
-      htmlUrl: 'https://github.com/$login',
-      type: 'User',
-      siteAdmin: false,
+      profileUrl: 'https://github.com/$login',
+      accountType: 'User',
     );
 
 final List<UserSummary> _users = <UserSummary>[
@@ -50,6 +50,9 @@ void main() {
   setUp(() {
     installFakeAvatars();
     repository = MockUserRepository();
+    // Cold-start seed: no prior cache unless a test says otherwise.
+    when(repository.getCachedUsers())
+        .thenAnswer((_) async => const <UserSummary>[]);
     connectivity = StreamController<bool>.broadcast();
   });
 
@@ -61,12 +64,13 @@ void main() {
   UsersBloc buildBloc() => UsersBloc(
         getUsers: GetUsers(repository),
         filterUsers: const FilterUsers(),
+        repository: repository,
         searchDebounce: Duration.zero,
       );
 
-  void stubSuccess({List<UserSummary>? users, int? nextSince}) => when(
+  void stubSuccess({List<UserSummary>? users, Object? nextCursor}) => when(
         repository.getUsers(
-          since: anyNamed('since'),
+          cursor: anyNamed('cursor'),
           perPage: anyNamed('perPage'),
           forceRefresh: anyNamed('forceRefresh'),
         ),
@@ -74,14 +78,14 @@ void main() {
         (_) async => Right<Failure, PaginatedUsers>(
           PaginatedUsers.fromBatch(
             users: users ?? _users,
-            nextSince: nextSince,
+            nextCursor: nextCursor,
           ),
         ),
       );
 
   void stubFailure(Failure failure) => when(
         repository.getUsers(
-          since: anyNamed('since'),
+          cursor: anyNamed('cursor'),
           perPage: anyNamed('perPage'),
           forceRefresh: anyNamed('forceRefresh'),
         ),
@@ -119,7 +123,7 @@ void main() {
     testWidgets('shows skeleton tiles, not a bare spinner', (
       WidgetTester tester,
     ) async {
-      stubSuccess(nextSince: 2);
+      stubSuccess(nextCursor: 2);
       await pump(tester, fetch: false);
 
       expect(find.byKey(const Key('loading_view')), findsOneWidget);
@@ -131,7 +135,7 @@ void main() {
     testWidgets('renders one keyed tile per visible user', (
       WidgetTester tester,
     ) async {
-      stubSuccess(nextSince: 2);
+      stubSuccess(nextCursor: 2);
       await pump(tester);
 
       expect(find.byKey(const PageStorageKey<String>('users_list')), findsOneWidget);
@@ -153,7 +157,7 @@ void main() {
     testWidgets('filters tiles as the query is typed', (
       WidgetTester tester,
     ) async {
-      stubSuccess(nextSince: 2);
+      stubSuccess(nextCursor: 2);
       await pump(tester);
 
       await tester.enterText(
@@ -167,7 +171,7 @@ void main() {
     testWidgets('no match shows NoSearchResultsView, distinct from empty', (
       WidgetTester tester,
     ) async {
-      stubSuccess(nextSince: 2);
+      stubSuccess(nextCursor: 2);
       await pump(tester);
 
       await tester.enterText(
@@ -176,11 +180,11 @@ void main() {
 
       expect(find.byKey(const Key('no_search_results_view')), findsOneWidget);
       expect(find.byKey(const Key('empty_view')), findsNothing);
-      expect(find.textContaining('no username filter'), findsOneWidget);
+      expect(find.textContaining('no search endpoint'), findsOneWidget);
     });
 
     testWidgets('Clear search restores the list', (WidgetTester tester) async {
-      stubSuccess(nextSince: 2);
+      stubSuccess(nextCursor: 2);
       await pump(tester);
 
       await tester.enterText(
@@ -235,7 +239,7 @@ void main() {
       stubFailure(const NetworkFailure());
       await pump(tester);
 
-      stubSuccess(nextSince: 2);
+      stubSuccess(nextCursor: 2);
       await tester.tap(find.byKey(const Key('error_retry_button')));
       await tester.pumpAndSettle();
 
@@ -267,7 +271,7 @@ void main() {
     testWidgets('hidden while online, shown when connectivity drops', (
       WidgetTester tester,
     ) async {
-      stubSuccess(nextSince: 2);
+      stubSuccess(nextCursor: 2);
       await pump(tester);
 
       expect(find.byKey(const Key('offline_banner')), findsNothing);
@@ -291,12 +295,12 @@ void main() {
       // Two tiles cannot fill the 600px test viewport, so maxScrollExtent is
       // 0 and the scroll listener can never fire. Without the post-frame
       // fill, pagination would stall here forever.
-      stubSuccess(nextSince: 2);
+      stubSuccess(nextCursor: 2);
       await pump(tester);
 
       verify(
         repository.getUsers(
-          since: 2,
+          cursor: 2,
           perPage: anyNamed('perPage'),
           forceRefresh: anyNamed('forceRefresh'),
         ),
@@ -315,7 +319,7 @@ void main() {
 
       verify(
         repository.getUsers(
-          since: null,
+          cursor: null,
           perPage: anyNamed('perPage'),
           forceRefresh: true,
         ),
@@ -376,7 +380,7 @@ void main() {
           reason: 'layout swaps with width');
       verify(
         repository.getUsers(
-          since: null,
+          cursor: null,
           perPage: anyNamed('perPage'),
           forceRefresh: anyNamed('forceRefresh'),
         ),

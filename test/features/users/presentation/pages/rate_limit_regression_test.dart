@@ -33,11 +33,11 @@ import '../../../../helpers/widget_harness.dart';
 
 UserSummary _u(int id) => UserSummary(
       id: id,
-      login: 'user$id',
+      detailId: 'user$id',
+      handle: 'user$id',
       avatarUrl: '',
-      htmlUrl: 'https://github.com/user$id',
-      type: 'User',
-      siteAdmin: false,
+      profileUrl: 'https://github.com/user$id',
+      accountType: 'User',
     );
 
 /// Enough rows to overflow a phone viewport, so the list really scrolls.
@@ -51,6 +51,9 @@ void main() {
   setUp(() {
     installFakeAvatars();
     repository = MockUserRepository();
+    // Cold-start seed: no prior cache unless a test says otherwise.
+    when(repository.getCachedUsers())
+        .thenAnswer((_) async => const <UserSummary>[]);
     connectivity = StreamController<bool>.broadcast();
   });
 
@@ -67,6 +70,7 @@ void main() {
     final UsersBloc bloc = UsersBloc(
       getUsers: GetUsers(repository),
       filterUsers: const FilterUsers(),
+      repository: repository,
       searchDebounce: Duration.zero,
     )..add(const UsersFetched());
 
@@ -86,18 +90,18 @@ void main() {
   void stubRateLimitedAfterFirstPage() {
     when(
       repository.getUsers(
-        since: null,
+        cursor: null,
         perPage: anyNamed('perPage'),
         forceRefresh: anyNamed('forceRefresh'),
       ),
     ).thenAnswer(
       (_) async => Right<Failure, PaginatedUsers>(
-        PaginatedUsers.fromBatch(users: _firstPage, nextSince: 2868),
+        PaginatedUsers.fromBatch(users: _firstPage, nextCursor: 2868),
       ),
     );
     when(
       repository.getUsers(
-        since: 2868,
+        cursor: 2868,
         perPage: anyNamed('perPage'),
         forceRefresh: anyNamed('forceRefresh'),
       ),
@@ -126,7 +130,7 @@ void main() {
 
       verify(
         repository.getUsers(
-          since: 2868,
+          cursor: 2868,
           perPage: anyNamed('perPage'),
           forceRefresh: anyNamed('forceRefresh'),
         ),
@@ -164,7 +168,7 @@ void main() {
 
       verifyNever(
         repository.getUsers(
-          since: anyNamed('since'),
+          cursor: anyNamed('cursor'),
           perPage: anyNamed('perPage'),
           forceRefresh: anyNamed('forceRefresh'),
         ),

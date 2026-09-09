@@ -4,11 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 UserSummary _u(int id, String login) => UserSummary(
       id: id,
-      login: login,
+      detailId: login,
+      handle: login,
       avatarUrl: 'https://avatars.githubusercontent.com/u/$id?v=4',
-      htmlUrl: 'https://github.com/$login',
-      type: 'User',
-      siteAdmin: false,
+      profileUrl: 'https://github.com/$login',
+      accountType: 'User',
     );
 
 void main() {
@@ -22,7 +22,7 @@ void main() {
   ];
 
   List<String> logins(List<UserSummary> result) =>
-      result.map((UserSummary u) => u.login).toList();
+      result.map((UserSummary u) => u.displayName).toList();
 
   List<UserSummary> run(String query, {List<UserSummary>? input}) =>
       filter(FilterUsersParams(users: input ?? users, query: query));

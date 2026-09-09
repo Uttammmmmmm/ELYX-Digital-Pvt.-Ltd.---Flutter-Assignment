@@ -4,7 +4,6 @@ library;
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
-import '../constants/api_constants.dart';
 import '../error/error_mapper.dart';
 import '../error/exceptions.dart';
 import 'api_response.dart';
@@ -19,14 +18,20 @@ import 'rate_limit_tracker.dart';
 /// throws [AppException], never [DioException], so data sources catch one
 /// vocabulary. Enforced by `test/architecture/dio_boundary_test.dart`.
 class DioClient {
-  DioClient({required RateLimitTracker rateLimitTracker, Dio? dio})
-      : _dio = dio ?? Dio() {
+  DioClient({
+    required RateLimitTracker rateLimitTracker,
+    required String baseUrl,
+    required Map<String, String> headers,
+    Dio? dio,
+  }) : _dio = dio ?? Dio() {
     _dio.options = _dio.options.copyWith(
-      baseUrl: ApiConstants.baseUrl,
+      // Supplied by the selected UsersApi rather than hardcoded: the client
+      // is transport, and which host it points at is the source's business.
+      baseUrl: baseUrl,
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 15),
       sendTimeout: const Duration(seconds: 10),
-      headers: ApiConstants.defaultHeaders,
+      headers: headers,
       responseType: ResponseType.json,
       // Let every status reach the interceptors so a 403 keeps its rate-limit
       // headers instead of being thrown away as a generic bad response.

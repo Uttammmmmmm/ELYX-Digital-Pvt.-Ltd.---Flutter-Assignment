@@ -39,6 +39,7 @@ abstract final class HiveInitializer {
   static Future<HiveBoxes> init() async {
     await Hive.initFlutter();
     registerAdaptersOnce();
+    await _dropIncompatibleBoxes();
 
     return HiveBoxes(
       pages: await _openBoxSafely<CachedPageModel>(CacheConstants.usersPageBox),
@@ -64,6 +65,30 @@ abstract final class HiveInitializer {
     if (!Hive.isAdapterRegistered(HiveTypeIds.cachedPage)) {
       Hive.registerAdapter(CachedPageModelAdapter());
     }
+  }
+
+  /// Drops persisted data written by an older schema.
+  ///
+  /// Hive stores raw FIELD INDICES, not names. Adding or reordering a
+  /// `@HiveField` therefore makes old bytes decode into the wrong fields --
+  /// which does not throw, it silently produces wrong data, and that is far
+  /// worse than a crash. Comparing a stored version against
+  /// [CacheConstants.schemaVersion] and dropping the data boxes on a mismatch
+  /// turns a silent corruption into one cold fetch.
+  static Future<void> _dropIncompatibleBoxes() async {
+    final Box<int> meta = await Hive.openBox<int>(CacheConstants.metaBox);
+    final int? stored = meta.get(CacheConstants.schemaVersionKey);
+
+    if (stored == CacheConstants.schemaVersion) return;
+
+    debugPrint(
+      '[hive] schema $stored -> ${CacheConstants.schemaVersion}, '
+      'dropping cached data',
+    );
+    await Hive.deleteBoxFromDisk(CacheConstants.usersPageBox);
+    await Hive.deleteBoxFromDisk(CacheConstants.userDetailBox);
+    await meta.put(CacheConstants.schemaVersionKey,
+        CacheConstants.schemaVersion);
   }
 
   /// Opens [name], recovering by deleting the box if it cannot be read.

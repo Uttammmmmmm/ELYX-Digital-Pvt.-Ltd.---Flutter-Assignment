@@ -6,6 +6,7 @@ import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
 import '../entities/paginated_users.dart';
 import '../entities/user_detail.dart';
+import '../entities/user_summary.dart';
 
 /// Access to GitHub users, from wherever the data layer chooses to get them.
 ///
@@ -15,13 +16,13 @@ import '../entities/user_detail.dart';
 abstract interface class UserRepository {
   /// Fetches one batch of users.
   ///
-  /// CURSOR, NOT PAGE INDEX: [since] is an opaque cursor obtained from a
-  /// previous [PaginatedUsers.nextSince]; passing null requests the first
-  /// batch. Callers therefore CANNOT jump to an arbitrary page -- there is no
-  /// "page 7". Pages are only reachable by walking forward from the start,
-  /// one request at a time, which is why the UI offers infinite scroll rather
-  /// than a numbered pager, and why a refresh restarts from the beginning
-  /// instead of reloading "the current page".
+  /// OPAQUE CURSOR: [cursor] is whatever the previous batch reported as
+  /// [PaginatedUsers.nextCursor]; passing null requests the first batch. Its
+  /// MEANING belongs to the active source -- a page number for reqres.in, a
+  /// user id for GitHub -- and callers must never inspect or arithmetic on
+  /// it. Pages are reached by walking forward, which is why the UI offers
+  /// infinite scroll rather than a numbered pager, and why a refresh restarts
+  /// from the beginning instead of reloading "the current page".
   ///
   /// [perPage] is a hint; GitHub caps it at 100 and may return fewer.
   ///
@@ -34,16 +35,26 @@ abstract interface class UserRepository {
   /// request fails, the implementation may still fall back to cached data
   /// rather than showing an error over nothing.
   Future<Either<Failure, PaginatedUsers>> getUsers({
-    int? since,
+    Object? cursor,
     int perPage,
     bool forceRefresh,
   });
 
   /// Fetches the full profile for [login].
   ///
-  /// Keyed by login, not numeric id -- that is what the endpoint accepts.
+  /// Keyed by [UserSummary.detailId], which each source populates with
+  /// whatever its own detail endpoint accepts.
   /// This is the ONLY source of name, email, bio and location, and each call
   /// costs one of 60 hourly requests, so callers should invoke it on
   /// navigation and never prefetch it across a list.
-  Future<Either<Failure, UserDetail>> getUserDetail(String login);
+  Future<Either<Failure, UserDetail>> getUserDetail(String detailId);
+
+  /// Every user ever cached, across all batches, deduplicated and in order.
+  ///
+  /// Seeds the list on a cold start so search covers everything previously
+  /// loaded rather than only this session's pages -- which is what makes
+  /// offline search useful rather than nominal. Deliberately NOT `Either`: an
+  /// empty result and a read failure both mean "nothing to seed with", and
+  /// neither is worth an error path.
+  Future<List<UserSummary>> getCachedUsers();
 }

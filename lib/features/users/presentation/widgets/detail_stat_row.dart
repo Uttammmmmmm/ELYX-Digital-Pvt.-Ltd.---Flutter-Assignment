@@ -1,14 +1,16 @@
-/// Repo/follower counters.
+/// Public counters, when the source provides them.
 library;
 
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_spacing.dart';
-
 import '../../domain/entities/user_detail.dart';
-import '../formatters/user_display.dart';
+import '../strings/users_strings.dart';
 
 /// The public counters from the profile document.
+///
+/// Rendered only when [UserDetail.hasStats] -- a source that has no counters
+/// gets no row, rather than three zeros that would read as real data.
 class DetailStatRow extends StatelessWidget {
   const DetailStatRow({required this.detail, super.key});
 
@@ -20,9 +22,12 @@ class DetailStatRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: <Widget>[
-        _Stat(label: 'Repos', value: detail.publicRepos),
-        _Stat(label: 'Followers', value: detail.followers),
-        _Stat(label: 'Following', value: detail.following),
+        if (detail.publicRepos != null)
+          _Stat(label: UsersStrings.statRepos, value: detail.publicRepos!),
+        if (detail.followers != null)
+          _Stat(label: UsersStrings.statFollowers, value: detail.followers!),
+        if (detail.following != null)
+          _Stat(label: UsersStrings.statFollowing, value: detail.following!),
       ],
     );
   }
@@ -42,21 +47,20 @@ class _Stat extends StatelessWidget {
       label: '$value $label',
       excludeSemantics: true,
       child: Column(
-      children: <Widget>[
-        Text(
-          UserDisplay.count(value),
-          maxLines: 1,
-          style: theme.textTheme.titleMedium
-              ?.copyWith(fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: AppSpacing.xs / 2),
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.labelSmall,
-        ),
-      ],
+        children: <Widget>[
+          Text(
+            UsersStrings.count(value),
+            maxLines: 1,
+            style: theme.textTheme.titleMedium,
+          ),
+          const SizedBox(height: AppSpacing.xs / 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelSmall,
+          ),
+        ],
       ),
     );
   }

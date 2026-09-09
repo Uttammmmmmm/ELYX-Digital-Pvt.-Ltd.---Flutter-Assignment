@@ -4,11 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 const UserSummary _u = UserSummary(
   id: 1,
-  login: 'mojombo',
+  detailId: 'mojombo',
+      handle: 'mojombo',
   avatarUrl: 'a',
-  htmlUrl: 'h',
-  type: 'User',
-  siteAdmin: false,
+  profileUrl: 'h',
+  accountType: 'User',
 );
 
 void main() {
@@ -16,16 +16,16 @@ void main() {
     test('a cursor and users means there is more to load', () {
       final PaginatedUsers page = PaginatedUsers.fromBatch(
         users: const <UserSummary>[_u],
-        nextSince: 1,
+        nextCursor: 1,
       );
       expect(page.hasReachedEnd, isFalse);
-      expect(page.nextSince, 1);
+      expect(page.nextCursor, 1);
     });
 
     test('a null cursor is the end of the list', () {
       final PaginatedUsers page = PaginatedUsers.fromBatch(
         users: const <UserSummary>[_u],
-        nextSince: null,
+        nextCursor: null,
       );
       expect(page.hasReachedEnd, isTrue);
     });
@@ -33,7 +33,7 @@ void main() {
     test('an empty batch is the end even when a cursor is present', () {
       final PaginatedUsers page = PaginatedUsers.fromBatch(
         users: const <UserSummary>[],
-        nextSince: 99,
+        nextCursor: 99,
       );
       expect(page.hasReachedEnd, isTrue);
     });
@@ -42,14 +42,14 @@ void main() {
   test('empty() is terminal and carries nothing', () {
     final PaginatedUsers page = PaginatedUsers.empty();
     expect(page.users, isEmpty);
-    expect(page.nextSince, isNull);
+    expect(page.nextCursor, isNull);
     expect(page.hasReachedEnd, isTrue);
   });
 
   group('copyWith', () {
     final PaginatedUsers base = PaginatedUsers.fromBatch(
       users: const <UserSummary>[_u],
-      nextSince: 7,
+      nextCursor: 7,
     );
 
     test('leaves untouched fields alone', () {
@@ -57,13 +57,13 @@ void main() {
     });
 
     test('replaces the cursor', () {
-      expect(base.copyWith(nextSince: 9).nextSince, 9);
+      expect(base.copyWith(nextCursor: 9).nextCursor, 9);
     });
 
-    test('clearNextSince nulls the cursor -- passing null cannot', () {
-      expect(base.copyWith(nextSince: null).nextSince, 7,
+    test('clearNextCursor nulls the cursor -- passing null cannot', () {
+      expect(base.copyWith(nextCursor: null).nextCursor, 7,
           reason: 'null means "unchanged"');
-      expect(base.copyWith(clearNextSince: true).nextSince, isNull);
+      expect(base.copyWith(clearNextCursor: true).nextCursor, isNull);
     });
   });
 }

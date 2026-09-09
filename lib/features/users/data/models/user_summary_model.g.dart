@@ -18,30 +18,39 @@ class UserSummaryModelAdapter extends TypeAdapter<UserSummaryModel> {
     };
     return UserSummaryModel(
       id: (fields[0] as num).toInt(),
-      login: fields[1] as String,
+      detailId: fields[1] as String,
       avatarUrl: fields[2] as String,
-      htmlUrl: fields[3] as String,
-      type: fields[4] as String,
-      siteAdmin: fields[5] as bool,
+      handle: fields[3] as String?,
+      firstName: fields[4] as String?,
+      lastName: fields[5] as String?,
+      email: fields[6] as String?,
+      profileUrl: fields[7] as String?,
+      accountType: fields[8] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserSummaryModel obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
-      ..write(obj.login)
+      ..write(obj.detailId)
       ..writeByte(2)
       ..write(obj.avatarUrl)
       ..writeByte(3)
-      ..write(obj.htmlUrl)
+      ..write(obj.handle)
       ..writeByte(4)
-      ..write(obj.type)
+      ..write(obj.firstName)
       ..writeByte(5)
-      ..write(obj.siteAdmin);
+      ..write(obj.lastName)
+      ..writeByte(6)
+      ..write(obj.email)
+      ..writeByte(7)
+      ..write(obj.profileUrl)
+      ..writeByte(8)
+      ..write(obj.accountType);
   }
 
   @override

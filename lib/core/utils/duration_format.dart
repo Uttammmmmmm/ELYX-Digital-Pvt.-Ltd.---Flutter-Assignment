@@ -18,23 +18,6 @@ String formatCountdown(Duration d) {
   return '${d.inHours}h ${(d.inMinutes % 60).toString().padLeft(2, '0')}m';
 }
 
-/// Formats age, e.g. `just now`, `5 minutes ago`, `3 hours ago`.
-///
-/// Used for the "showing saved data" banner.
-String formatAge(Duration d) {
-  if (d.inSeconds < 45) return 'just now';
-  if (d.inMinutes < 60) {
-    final int m = d.inMinutes.clamp(1, 59);
-    return '$m ${m == 1 ? 'minute' : 'minutes'} ago';
-  }
-  if (d.inHours < 24) {
-    final int h = d.inHours;
-    return '$h ${h == 1 ? 'hour' : 'hours'} ago';
-  }
-  final int days = d.inDays;
-  return '$days ${days == 1 ? 'day' : 'days'} ago';
-}
-
 /// Formats a wall-clock time as `4:35 PM`.
 ///
 /// Hand-rolled for the same reason as the rest of this file: no `intl` in the

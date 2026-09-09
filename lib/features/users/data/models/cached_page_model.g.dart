@@ -18,8 +18,8 @@ class CachedPageModelAdapter extends TypeAdapter<CachedPageModel> {
     };
     return CachedPageModel(
       users: (fields[0] as List).cast<UserSummaryModel>(),
-      nextSince: (fields[1] as num?)?.toInt(),
-      requestedSince: (fields[2] as num?)?.toInt(),
+      nextCursor: fields[1] as Object?,
+      requestedCursor: fields[2] as Object?,
       cachedAt: fields[3] as DateTime,
     );
   }
@@ -31,9 +31,9 @@ class CachedPageModelAdapter extends TypeAdapter<CachedPageModel> {
       ..writeByte(0)
       ..write(obj.users)
       ..writeByte(1)
-      ..write(obj.nextSince)
+      ..write(obj.nextCursor)
       ..writeByte(2)
-      ..write(obj.requestedSince)
+      ..write(obj.requestedCursor)
       ..writeByte(3)
       ..write(obj.cachedAt);
   }

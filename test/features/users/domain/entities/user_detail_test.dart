@@ -1,53 +1,67 @@
 import 'package:elyx_digital_assignment/features/users/domain/entities/user_detail.dart';
+import 'package:elyx_digital_assignment/features/users/domain/entities/user_summary.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-UserDetail _detail({String? name, String? email}) => UserDetail(
-      id: 1,
-      login: 'mojombo',
-      avatarUrl: 'a',
-      htmlUrl: 'h',
-      publicRepos: 66,
-      followers: 23000,
-      following: 11,
-      createdAt: DateTime.utc(2007, 10, 20),
-      name: name,
-      email: email,
-    );
+import '../../../../helpers/entity_fixtures.dart';
 
 void main() {
-  group('displayName', () {
-    test('uses the real name when set', () {
-      expect(_detail(name: 'Tom Preston-Werner').displayName,
-          'Tom Preston-Werner');
+  group('displayName -- never blank, whichever source supplied the user', () {
+    test('prefers a real name', () {
+      expect(reqresDetail(1, first: 'George', last: 'Bluth').displayName,
+          'George Bluth');
     });
 
-    test('falls back to the login when the name is null (constraint c)', () {
-      expect(_detail().displayName, 'mojombo');
+    test('falls back to the handle when there is no name', () {
+      expect(githubDetail(1, 'mojombo').displayName, 'mojombo');
     });
 
-    test('is never empty -- login is always present', () {
-      expect(_detail().displayName, isNotEmpty);
+    test('falls back to the id when there is neither', () {
+      const UserSummary bare =
+          UserSummary(id: 7, detailId: '7', avatarUrl: 'a');
+      expect(const UserDetail(user: bare).displayName, 'User 7');
+    });
+
+    test('tolerates a blank half of the name', () {
+      final UserDetail d = UserDetail(
+        user: UserSummary(
+          id: 1,
+          detailId: '1',
+          avatarUrl: 'a',
+          firstName: 'George',
+          lastName: '   ',
+        ),
+      );
+      expect(d.displayName, 'George');
     });
   });
 
   group('hasEmail', () {
-    test('is false when GitHub hid the email -- the common case', () {
-      expect(_detail().hasEmail, isFalse);
+    test('is true when the source provides one (reqres always does)', () {
+      expect(reqresDetail(1).hasEmail, isTrue);
     });
 
-    test('is true when an email is public', () {
-      expect(_detail(email: 'tom@example.com').hasEmail, isTrue);
+    test('is false when absent -- the common case on GitHub', () {
+      expect(githubDetail(1, 'mojombo').hasEmail, isFalse);
     });
   });
 
-  test('the entity exposes no phone concept at all (constraint c)', () {
-    // Compile-time guarantee: `UserDetail` has no `phone` member, so the UI
-    // cannot accidentally render fabricated data. This test documents the
-    // decision -- if someone adds the field, the props list below changes and
-    // this test is the breadcrumb explaining why it should not.
-    final UserDetail detail = _detail();
-    expect(detail.props.length, 14,
-        reason: 'adding a phone field here would be modelling data GitHub '
-            'does not have');
+  group('hasStats', () {
+    test('is true when the source provides counters', () {
+      expect(githubDetail(1, 'mojombo').hasStats, isTrue);
+    });
+
+    test('is false on a source without them, so the UI hides the row rather '
+        'than showing three zeros', () {
+      expect(reqresDetail(1).hasStats, isFalse);
+    });
+  });
+
+  test('the entity exposes no phone concept at all', () {
+    // A compile-time guarantee: `UserDetail` has no `phone` member, so the UI
+    // cannot render fabricated data. NEITHER supported API has a phone field,
+    // so this is a documented gap, not an unimplemented feature.
+    final UserDetail detail = reqresDetail(1);
+    expect(detail.props.length, 9,
+        reason: 'adding a phone field would be modelling data no source has');
   });
 }

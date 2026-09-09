@@ -43,7 +43,7 @@ class UsersState extends Equatable {
     this.allUsers = const <UserSummary>[],
     this.visibleUsers = const <UserSummary>[],
     this.searchQuery = '',
-    this.nextSince,
+    this.nextCursor,
     this.hasReachedEnd = false,
     this.failure,
     this.rateLimitResetAt,
@@ -64,7 +64,14 @@ class UsersState extends Equatable {
 
   /// Opaque cursor for the next page; null before the first load and at the
   /// end of the list. Constraint (a) -- never interpreted here.
-  final int? nextSince;
+  /// Opaque cursor for the next batch; null before the first load and at the
+  /// end of the list.
+  ///
+  /// `Object?`, and never interpreted here. Its meaning belongs to the active
+  /// source -- a page number for reqres, a user id for GitHub -- and the Bloc
+  /// only stores it and hands it back. That is what lets one Bloc drive two
+  /// incompatible pagination schemes.
+  final Object? nextCursor;
 
   /// True once GitHub has said there is no next page.
   final bool hasReachedEnd;
@@ -110,7 +117,7 @@ class UsersState extends Equatable {
   /// behaviour rate limiting exists to stop.
   bool get canLoadMore =>
       !hasReachedEnd &&
-      nextSince != null &&
+      nextCursor != null &&
       !isRateLimited &&
       status != UsersStatus.failure &&
       status != UsersStatus.loadingMore &&
@@ -152,15 +159,15 @@ class UsersState extends Equatable {
 
   /// Copy helper.
   ///
-  /// [failure] and [nextSince] are nullable, so "leave alone" and "clear"
+  /// [failure] and [nextCursor] are nullable, so "leave alone" and "clear"
   /// cannot both be expressed by passing null -- each gets an explicit flag.
   UsersState copyWith({
     UsersStatus? status,
     List<UserSummary>? allUsers,
     List<UserSummary>? visibleUsers,
     String? searchQuery,
-    int? nextSince,
-    bool clearNextSince = false,
+    Object? nextCursor,
+    bool clearNextCursor = false,
     bool? hasReachedEnd,
     Failure? failure,
     bool clearFailure = false,
@@ -172,7 +179,7 @@ class UsersState extends Equatable {
       allUsers: allUsers ?? this.allUsers,
       visibleUsers: visibleUsers ?? this.visibleUsers,
       searchQuery: searchQuery ?? this.searchQuery,
-      nextSince: clearNextSince ? null : (nextSince ?? this.nextSince),
+      nextCursor: clearNextCursor ? null : (nextCursor ?? this.nextCursor),
       hasReachedEnd: hasReachedEnd ?? this.hasReachedEnd,
       failure: clearFailure ? null : (failure ?? this.failure),
       rateLimitResetAt: clearRateLimitResetAt
@@ -187,7 +194,7 @@ class UsersState extends Equatable {
         allUsers,
         visibleUsers,
         searchQuery,
-        nextSince,
+        nextCursor,
         hasReachedEnd,
         failure,
         rateLimitResetAt,

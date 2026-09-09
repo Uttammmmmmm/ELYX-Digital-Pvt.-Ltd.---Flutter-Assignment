@@ -9,11 +9,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 const UserSummary _summary = UserSummary(
   id: 1,
-  login: 'mojombo',
+  detailId: 'mojombo',
+      handle: 'mojombo',
   avatarUrl: 'a',
-  htmlUrl: 'h',
-  type: 'User',
-  siteAdmin: false,
+  profileUrl: 'h',
+  accountType: 'User',
 );
 
 /// `RouteSettings.arguments` is `Object?`, so wrong arguments are invisible to

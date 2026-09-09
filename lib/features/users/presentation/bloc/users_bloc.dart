@@ -8,6 +8,7 @@ import '../../../../core/bloc/event_transformers.dart';
 import '../../../../core/error/failures.dart';
 import '../../domain/entities/paginated_users.dart';
 import '../../domain/entities/user_summary.dart';
+import '../../domain/repositories/user_repository.dart';
 import '../../domain/usecases/filter_users.dart';
 import '../../domain/usecases/get_users.dart';
 import 'users_event.dart';
@@ -24,9 +25,11 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
   UsersBloc({
     required GetUsers getUsers,
     required FilterUsers filterUsers,
+    required UserRepository repository,
     Duration searchDebounce = const Duration(milliseconds: 300),
   })  : _getUsers = getUsers,
         _filterUsers = filterUsers,
+        _repository = repository,
         super(const UsersState()) {
     on<UsersFetched>(_onFetched);
 
@@ -60,6 +63,9 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
   final GetUsers _getUsers;
   final FilterUsers _filterUsers;
 
+  /// Used only for the cold-start cache seed; all fetching goes via use cases.
+  final UserRepository _repository;
+
   // -- Handlers ------------------------------------------------------------
 
   Future<void> _onFetched(
@@ -69,7 +75,19 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
     if (state.status != UsersStatus.initial) return;
 
     emit(state.copyWith(status: UsersStatus.loading, clearFailure: true));
-    await _load(emit, since: null, replace: true);
+
+    // Seed from everything ever cached, before the network is touched. This
+    // is what makes offline search cover previous sessions rather than only
+    // the pages fetched since launch -- open the app on a plane and the
+    // search box still works over the whole history. The seed is replaced by
+    // the first live batch, so it costs nothing when online.
+    final List<UserSummary> cached = await _repository.getCachedUsers();
+    if (isClosed) return;
+    if (cached.isNotEmpty) {
+      emit(_filtered(state.copyWith(allUsers: cached), state.searchQuery));
+    }
+
+    await _load(emit, cursor: null, replace: true);
   }
 
   Future<void> _onNextPage(
@@ -82,7 +100,7 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
     if (!state.canLoadMore) return;
 
     emit(state.copyWith(status: UsersStatus.loadingMore, clearFailure: true));
-    await _load(emit, since: state.nextSince, replace: false);
+    await _load(emit, cursor: state.nextCursor, replace: false);
   }
 
   Future<void> _onRefreshed(
@@ -97,7 +115,7 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
     // Cursor resets to null because `since` is a cursor, not a page index --
     // there is no way to re-request "the current page", only to restart the
     // walk from the beginning.
-    await _load(emit, since: null, replace: true, forceRefresh: true);
+    await _load(emit, cursor: null, replace: true, forceRefresh: true);
   }
 
   Future<void> _onRetried(
@@ -120,7 +138,7 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
         clearFailure: true,
       ),
     );
-    await _load(emit, since: state.nextSince, replace: isFirstPage);
+    await _load(emit, cursor: state.nextCursor, replace: isFirstPage);
   }
 
   void _onSearchQueryChanged(
@@ -139,7 +157,7 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
 
   /// Applies [query] to the loaded users.
   ///
-  /// Purely local: no network call, and `nextSince` / `hasReachedEnd` are
+  /// Purely local: no network call, and `nextCursor` / `hasReachedEnd` are
   /// untouched, so pagination is unaffected by searching. Filtering
   /// `allUsers` itself would destroy the cursor sequence and break scrolling
   /// the moment the query was cleared.
@@ -153,12 +171,12 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
   /// Fetches one page and folds the result into state.
   Future<void> _load(
     Emitter<UsersState> emit, {
-    required int? since,
+    required Object? cursor,
     required bool replace,
     bool forceRefresh = false,
   }) async {
     final Either<Failure, PaginatedUsers> result = await _getUsers(
-      GetUsersParams(since: since, forceRefresh: forceRefresh),
+      GetUsersParams(cursor: cursor, forceRefresh: forceRefresh),
     );
 
     // MUST be checked after every await before emitting. A Bloc closed while
@@ -179,7 +197,7 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
 
   /// Records a failure WITHOUT discarding progress.
   ///
-  /// `allUsers` and `nextSince` are deliberately left untouched, so a retry
+  /// `allUsers` and `nextCursor` are deliberately left untouched, so a retry
   /// resumes from the same cursor instead of restarting the list.
   UsersState _withFailure(Failure failure) => state.copyWith(
         status: UsersStatus.failure,
@@ -200,8 +218,8 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
       state.copyWith(
         status: UsersStatus.success,
         allUsers: merged,
-        nextSince: page.nextSince,
-        clearNextSince: page.nextSince == null,
+        nextCursor: page.nextCursor,
+        clearNextCursor: page.nextCursor == null,
         hasReachedEnd: page.hasReachedEnd,
         clearFailure: true,
         // A successful response means the quota is no longer spent.

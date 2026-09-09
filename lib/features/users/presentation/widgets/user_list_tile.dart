@@ -26,7 +26,9 @@ class UserListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final bool isPerson = user.type == 'User';
+    // Only some sources label account types; absent means an ordinary user.
+    final String? type = user.accountType;
+    final bool isOrganisation = type != null && type != 'User';
 
     return SizedBox(
       height: UserTileMetrics.heightFor(context),
@@ -41,7 +43,7 @@ class UserListTile extends StatelessWidget {
                 tag: userAvatarHeroTag(user.id),
                 child: UserAvatar(
                   url: user.avatarUrl,
-                  login: user.login,
+                  login: user.displayName,
                   radius: AppSizes.avatarSm,
                 ),
               ),
@@ -51,16 +53,20 @@ class UserListTile extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    // A login can be 39 characters; ellipsize, never overflow.
+                    // Names and logins both run long; ellipsize, never overflow.
                     Text(
-                      user.login,
+                      user.displayName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.titleSmall,
                     ),
                     const SizedBox(height: AppSpacing.xs / 2),
                     Text(
-                      'id ${user.id} · ${user.type}',
+                      // Handle where the source has one, else the email,
+                      // else the id -- always something identifying.
+                      user.handle != null
+                          ? '@${user.handle}'
+                          : (user.email ?? 'id ${user.id}'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall,
@@ -68,7 +74,7 @@ class UserListTile extends StatelessWidget {
                   ],
                 ),
               ),
-              if (!isPerson) _TypeBadge(type: user.type),
+              if (isOrganisation) _TypeBadge(type: type),
               Icon(Icons.chevron_right, color: theme.colorScheme.outline),
             ],
           ),

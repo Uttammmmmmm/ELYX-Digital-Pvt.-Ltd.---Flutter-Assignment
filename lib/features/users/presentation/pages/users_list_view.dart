@@ -4,6 +4,8 @@ library;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
+import '../strings/users_strings.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/routing/app_routes.dart';
@@ -160,7 +162,7 @@ class _UsersListViewState extends State<UsersListView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('GitHub Users')),
+      appBar: AppBar(title: const Text(UsersStrings.listTitle)),
       body: Column(
         children: <Widget>[
           UserSearchBar(

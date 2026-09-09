@@ -15,14 +15,15 @@ import '../repositories/user_repository.dart';
 /// duplicate load-more, and it makes the params printable in test failures.
 class GetUsersParams extends Equatable {
   const GetUsersParams({
-    this.since,
+    this.cursor,
     this.perPage = 10,
     this.forceRefresh = false,
   });
 
-  /// Opaque cursor from a previous [PaginatedUsers.nextSince]; null for the
-  /// first batch. NOT a page index -- see [UserRepository.getUsers].
-  final int? since;
+  /// Opaque cursor from a previous [PaginatedUsers.nextCursor]; null for the
+  /// first batch. Its meaning belongs to the active source -- a page number
+  /// for reqres, a user id for GitHub -- and is never inspected here.
+  final Object? cursor;
 
   /// Requested batch size. GitHub caps this at 100.
   final int perPage;
@@ -31,7 +32,7 @@ class GetUsersParams extends Equatable {
   final bool forceRefresh;
 
   @override
-  List<Object?> get props => <Object?>[since, perPage, forceRefresh];
+  List<Object?> get props => <Object?>[cursor, perPage, forceRefresh];
 }
 
 /// Fetches the next batch of users.
@@ -49,7 +50,7 @@ class GetUsers implements UseCase<PaginatedUsers, GetUsersParams> {
   @override
   Future<Either<Failure, PaginatedUsers>> call(GetUsersParams params) =>
       _repository.getUsers(
-        since: params.since,
+        cursor: params.cursor,
         perPage: params.perPage,
         forceRefresh: params.forceRefresh,
       );

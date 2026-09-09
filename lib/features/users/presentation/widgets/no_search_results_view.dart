@@ -3,6 +3,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../strings/users_strings.dart';
+
 import '../../../../core/theme/app_spacing.dart';
 import 'adaptive_centered_view.dart';
 
@@ -45,11 +47,10 @@ class NoSearchResultsView extends StatelessWidget {
           children: <Widget>[
             Icon(Icons.search_off, size: AppSizes.iconXl, color: theme.colorScheme.outline),
             const SizedBox(height: AppSpacing.md),
-            Text('No matches for "$query"', style: theme.textTheme.titleMedium),
+            Text(UsersStrings.noMatchesTitle(query), style: theme.textTheme.titleMedium),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'GitHub has no username filter, so only the $loadedCount users '
-              'loaded so far were searched.',
+              UsersStrings.noMatchesBody(loadedCount),
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
@@ -63,13 +64,13 @@ class NoSearchResultsView extends StatelessWidget {
                   key: const Key('clear_search_button'),
                   onPressed: onClearSearch,
                   icon: const Icon(Icons.clear, size: AppSizes.iconMd),
-                  label: const Text('Clear search'),
+                  label: const Text(UsersStrings.clearSearch),
                 ),
                 if (onLoadMore != null)
                   OutlinedButton(
                     key: const Key('search_load_more_button'),
                     onPressed: onLoadMore,
-                    child: const Text('Load more users'),
+                    child: const Text(UsersStrings.loadMoreUsers),
                   ),
               ],
             ),

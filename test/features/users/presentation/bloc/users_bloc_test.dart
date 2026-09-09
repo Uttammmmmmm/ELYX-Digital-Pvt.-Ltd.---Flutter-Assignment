@@ -15,11 +15,11 @@ import '../../../../helpers/mocks.mocks.dart';
 
 UserSummary _u(int id, String login) => UserSummary(
       id: id,
-      login: login,
+      detailId: login,
+      handle: login,
       avatarUrl: 'https://avatars.githubusercontent.com/u/$id?v=4',
-      htmlUrl: 'https://github.com/$login',
-      type: 'User',
-      siteAdmin: false,
+      profileUrl: 'https://github.com/$login',
+      accountType: 'User',
     );
 
 final List<UserSummary> _page1 = <UserSummary>[_u(1, 'mojombo'), _u(2, 'defunkt')];
@@ -33,42 +33,48 @@ void main() {
   UsersBloc build({Duration debounce = Duration.zero}) => UsersBloc(
         getUsers: GetUsers(repository),
         filterUsers: const FilterUsers(),
+        repository: repository,
         searchDebounce: debounce,
       );
 
   void stub(
     List<UserSummary> users, {
-    int? nextSince,
-    int? forSince,
+    Object? nextCursor,
+    Object? forCursor,
     bool? forceRefresh,
   }) {
     when(
       repository.getUsers(
-        since: forSince,
+        cursor: forCursor,
         perPage: anyNamed('perPage'),
         forceRefresh: forceRefresh ?? anyNamed('forceRefresh'),
       ),
     ).thenAnswer(
       (_) async => Right<Failure, PaginatedUsers>(
-        PaginatedUsers.fromBatch(users: users, nextSince: nextSince),
+        PaginatedUsers.fromBatch(users: users, nextCursor: nextCursor),
       ),
     );
   }
 
-  void stubFailure(Failure failure, {int? forSince}) => when(
+  void stubFailure(Failure failure, {Object? forCursor}) => when(
         repository.getUsers(
-          since: forSince,
+          cursor: forCursor,
           perPage: anyNamed('perPage'),
           forceRefresh: anyNamed('forceRefresh'),
         ),
       ).thenAnswer((_) async => Left<Failure, PaginatedUsers>(failure));
 
-  setUp(() => repository = MockUserRepository());
+  setUp(() {
+    repository = MockUserRepository();
+    // Cold-start seed: no prior cache unless a test says otherwise.
+    when(repository.getCachedUsers())
+        .thenAnswer((_) async => const <UserSummary>[]);
+  });
 
   // 1 --------------------------------------------------------------------
   blocTest<UsersBloc, UsersState>(
     'UsersFetched emits loading then success with the first page',
-    setUp: () => stub(_page1, nextSince: 2, forSince: null),
+    setUp: () => stub(_page1, nextCursor: 2, forCursor: null),
     build: build,
     act: (UsersBloc bloc) => bloc.add(const UsersFetched()),
     expect: () => <Matcher>[
@@ -78,7 +84,7 @@ void main() {
           .having((UsersState s) => s.status, 'status', UsersStatus.success)
           .having((UsersState s) => s.allUsers, 'allUsers', _page1)
           .having((UsersState s) => s.visibleUsers, 'visibleUsers', _page1)
-          .having((UsersState s) => s.nextSince, 'nextSince', 2)
+          .having((UsersState s) => s.nextCursor, 'nextSince', 2)
           .having((UsersState s) => s.hasReachedEnd, 'hasReachedEnd', false),
     ],
   );
@@ -86,7 +92,7 @@ void main() {
   // 1b -------------------------------------------------------------------
   blocTest<UsersBloc, UsersState>(
     'UsersFetched is idempotent -- a second one does not refetch',
-    setUp: () => stub(_page1, nextSince: 2, forSince: null),
+    setUp: () => stub(_page1, nextCursor: 2, forCursor: null),
     build: build,
     act: (UsersBloc bloc) async {
       bloc.add(const UsersFetched());
@@ -95,7 +101,7 @@ void main() {
     },
     verify: (_) => verify(
       repository.getUsers(
-        since: null,
+        cursor: null,
         perPage: anyNamed('perPage'),
         forceRefresh: anyNamed('forceRefresh'),
       ),
@@ -106,8 +112,8 @@ void main() {
   blocTest<UsersBloc, UsersState>(
     'UsersNextPageRequested appends the next page and advances the cursor',
     setUp: () {
-      stub(_page1, nextSince: 2, forSince: null);
-      stub(_page2, nextSince: 4, forSince: 2);
+      stub(_page1, nextCursor: 2, forCursor: null);
+      stub(_page2, nextCursor: 4, forCursor: 2);
     },
     build: build,
     act: (UsersBloc bloc) async {
@@ -124,7 +130,7 @@ void main() {
           .having((UsersState s) => s.status, 'status', UsersStatus.success)
           .having((UsersState s) => s.allUsers, 'allUsers',
               <UserSummary>[..._page1, ..._page2])
-          .having((UsersState s) => s.nextSince, 'nextSince', 4),
+          .having((UsersState s) => s.nextCursor, 'nextSince', 4),
     ],
   );
 
@@ -132,17 +138,17 @@ void main() {
   blocTest<UsersBloc, UsersState>(
     'droppable(): duplicate scroll events issue exactly ONE request',
     setUp: () {
-      stub(_page1, nextSince: 2, forSince: null);
+      stub(_page1, nextCursor: 2, forCursor: null);
       when(
         repository.getUsers(
-          since: 2,
+          cursor: 2,
           perPage: anyNamed('perPage'),
           forceRefresh: anyNamed('forceRefresh'),
         ),
       ).thenAnswer((_) async {
         await Future<void>.delayed(const Duration(milliseconds: 50));
         return Right<Failure, PaginatedUsers>(
-          PaginatedUsers.fromBatch(users: _page2, nextSince: 4),
+          PaginatedUsers.fromBatch(users: _page2, nextCursor: 4),
         );
       });
     },
@@ -159,7 +165,7 @@ void main() {
     verify: (UsersBloc bloc) {
       verify(
         repository.getUsers(
-          since: 2,
+          cursor: 2,
           perPage: anyNamed('perPage'),
           forceRefresh: anyNamed('forceRefresh'),
         ),
@@ -172,7 +178,7 @@ void main() {
   // 4 --------------------------------------------------------------------
   blocTest<UsersBloc, UsersState>(
     'no request once hasReachedEnd, and none before a cursor exists',
-    setUp: () => stub(_page1, forSince: null), // no nextSince -> end
+    setUp: () => stub(_page1, forCursor: null), // no nextSince -> end
     build: build,
     act: (UsersBloc bloc) async {
       // Before the first page: nextSince is null, so this must be ignored.
@@ -188,7 +194,7 @@ void main() {
       expect(bloc.state.canLoadMore, isFalse);
       verifyNever(
         repository.getUsers(
-          since: argThat(isNotNull, named: 'since'),
+          cursor: argThat(isNotNull, named: 'cursor'),
           perPage: anyNamed('perPage'),
           forceRefresh: anyNamed('forceRefresh'),
         ),
@@ -200,8 +206,8 @@ void main() {
   blocTest<UsersBloc, UsersState>(
     'error mid-pagination KEEPS allUsers and nextSince so retry resumes',
     setUp: () {
-      stub(_page1, nextSince: 2, forSince: null);
-      stubFailure(const ServerFailure(), forSince: 2);
+      stub(_page1, nextCursor: 2, forCursor: null);
+      stubFailure(const ServerFailure(), forCursor: 2);
     },
     build: build,
     act: (UsersBloc bloc) async {
@@ -210,7 +216,7 @@ void main() {
       bloc.add(const UsersNextPageRequested());
       await Future<void>.delayed(Duration.zero);
       // Now the same cursor succeeds.
-      stub(_page2, nextSince: 4, forSince: 2);
+      stub(_page2, nextCursor: 4, forCursor: 2);
       bloc.add(const UsersFailedPageRetried());
     },
     // Emitted: loading, success, loadingMore, failure, loadingMore, success.
@@ -220,7 +226,7 @@ void main() {
       isA<UsersState>()
           .having((UsersState s) => s.status, 'status', UsersStatus.failure)
           .having((UsersState s) => s.allUsers, 'users survive', _page1)
-          .having((UsersState s) => s.nextSince, 'cursor survives', 2)
+          .having((UsersState s) => s.nextCursor, 'cursor survives', 2)
           .having((UsersState s) => s.hasInlineFailure, 'inline, not blocking',
               true),
       // ...so the retry resumes from cursor 2 rather than restarting.
@@ -238,7 +244,7 @@ void main() {
     'a cold failure is blocking and exposes rateLimitResetAt for the countdown',
     setUp: () => stubFailure(
       RateLimitFailure(resetAt: DateTime.utc(2026, 9, 9, 12)),
-      forSince: null,
+      forCursor: null,
     ),
     build: build,
     act: (UsersBloc bloc) => bloc.add(const UsersFetched()),
@@ -255,7 +261,7 @@ void main() {
   // 7 --------------------------------------------------------------------
   blocTest<UsersBloc, UsersState>(
     'search filters visibleUsers without a network call or cursor reset',
-    setUp: () => stub(_page1, nextSince: 2, forSince: null),
+    setUp: () => stub(_page1, nextCursor: 2, forCursor: null),
     build: build,
     act: (UsersBloc bloc) async {
       bloc.add(const UsersFetched());
@@ -268,10 +274,10 @@ void main() {
     skip: 2,
     expect: () => <Matcher>[
       isA<UsersState>()
-          .having((UsersState s) => s.visibleUsers.map((UserSummary u) => u.login),
+          .having((UsersState s) => s.visibleUsers.map((UserSummary u) => u.displayName),
               'filtered', <String>['mojombo'])
           .having((UsersState s) => s.allUsers, 'allUsers untouched', _page1)
-          .having((UsersState s) => s.nextSince, 'cursor untouched', 2)
+          .having((UsersState s) => s.nextCursor, 'cursor untouched', 2)
           .having((UsersState s) => s.isSearchEmpty, 'has matches', false),
       isA<UsersState>()
           .having((UsersState s) => s.visibleUsers, 'restored', _page1)
@@ -279,7 +285,7 @@ void main() {
     ],
     verify: (_) => verify(
       repository.getUsers(
-        since: null,
+        cursor: null,
         perPage: anyNamed('perPage'),
         forceRefresh: anyNamed('forceRefresh'),
       ),
@@ -289,7 +295,7 @@ void main() {
   // 7b -------------------------------------------------------------------
   blocTest<UsersBloc, UsersState>(
     'debounce collapses a burst of keystrokes into a single filter',
-    setUp: () => stub(_page1, nextSince: 2, forSince: null),
+    setUp: () => stub(_page1, nextCursor: 2, forCursor: null),
     build: () => build(debounce: const Duration(milliseconds: 100)),
     act: (UsersBloc bloc) async {
       bloc.add(const UsersFetched());
@@ -313,11 +319,11 @@ void main() {
   blocTest<UsersBloc, UsersState>(
     'refresh keeps the old list on screen, then replaces it and dedupes',
     setUp: () {
-      stub(_page1, nextSince: 2, forSince: null, forceRefresh: false);
+      stub(_page1, nextCursor: 2, forCursor: null, forceRefresh: false);
       stub(
         <UserSummary>[_u(1, 'mojombo'), _u(9, 'octocat')],
-        nextSince: 9,
-        forSince: null,
+        nextCursor: 9,
+        forCursor: null,
         forceRefresh: true,
       );
     },
@@ -335,13 +341,13 @@ void main() {
           .having((UsersState s) => s.allUsers, 'old list still shown', _page1),
       isA<UsersState>()
           .having((UsersState s) => s.status, 'status', UsersStatus.success)
-          .having((UsersState s) => s.allUsers.map((UserSummary u) => u.login),
+          .having((UsersState s) => s.allUsers.map((UserSummary u) => u.displayName),
               'replaced, not appended', <String>['mojombo', 'octocat'])
-          .having((UsersState s) => s.nextSince, 'cursor restarted', 9),
+          .having((UsersState s) => s.nextCursor, 'cursor restarted', 9),
     ],
     verify: (_) => verify(
       repository.getUsers(
-        since: null,
+        cursor: null,
         perPage: anyNamed('perPage'),
         forceRefresh: true,
       ),
@@ -353,14 +359,14 @@ void main() {
     'closing mid-request does not emit on a closed bloc (back navigation)',
     setUp: () => when(
       repository.getUsers(
-        since: anyNamed('since'),
+        cursor: anyNamed('cursor'),
         perPage: anyNamed('perPage'),
         forceRefresh: anyNamed('forceRefresh'),
       ),
     ).thenAnswer((_) async {
       await Future<void>.delayed(const Duration(milliseconds: 50));
       return Right<Failure, PaginatedUsers>(
-        PaginatedUsers.fromBatch(users: _page1, nextSince: 2),
+        PaginatedUsers.fromBatch(users: _page1, nextCursor: 2),
       );
     }),
     build: build,

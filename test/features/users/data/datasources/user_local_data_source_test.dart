@@ -1,30 +1,22 @@
 import 'dart:io';
 
 import 'package:elyx_digital_assignment/core/constants/cache_constants.dart';
+import 'package:elyx_digital_assignment/core/storage/hive_initializer.dart';
 import 'package:elyx_digital_assignment/features/users/data/datasources/user_local_data_source.dart';
 import 'package:elyx_digital_assignment/features/users/data/models/cached_page_model.dart';
 import 'package:elyx_digital_assignment/features/users/data/models/user_detail_model.dart';
-import 'package:elyx_digital_assignment/features/users/data/models/user_summary_model.dart';
 import 'package:elyx_digital_assignment/features/users/domain/entities/paginated_users.dart';
 import 'package:elyx_digital_assignment/features/users/domain/entities/user_summary.dart';
-import 'package:elyx_digital_assignment/core/storage/hive_initializer.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce/hive.dart';
 
-import '../../../../fixtures/fixture_reader.dart';
-
-UserSummaryModel _u(int id, String login) => UserSummaryModel(
-      id: id,
-      login: login,
-      avatarUrl: 'https://avatars.githubusercontent.com/u/$id?v=4',
-      htmlUrl: 'https://github.com/$login',
-      type: 'User',
-      siteAdmin: false,
-    );
+import '../../../../helpers/entity_fixtures.dart';
 
 /// Run against real Hive boxes in a temp directory rather than mocks: the
 /// thing worth testing here IS the adapter round trip through disk.
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late Directory tempDir;
   late Box<CachedPageModel> pagesBox;
   late Box<UserDetailModel> detailsBox;
@@ -48,42 +40,42 @@ void main() {
     await tempDir.delete(recursive: true);
   });
 
-  PaginatedUsers page(List<UserSummary> users, {int? nextSince}) =>
-      PaginatedUsers.fromBatch(users: users, nextSince: nextSince);
+  PaginatedUsers page(List<UserSummary> users, {Object? nextCursor}) =>
+      PaginatedUsers.fromBatch(users: users, nextCursor: nextCursor);
 
-  group('cache keys are derived from the CURSOR (constraint a)', () {
+  group('cache keys derive from the CURSOR', () {
     test('the first batch uses page_first', () {
       expect(CacheConstants.usersPageKey(null), 'page_first');
     });
 
-    test('a cursor batch uses page_<since>', () {
-      expect(CacheConstants.usersPageKey(47), 'page_47');
+    test('a cursor batch embeds the cursor, whatever its shape', () {
+      expect(CacheConstants.usersPageKey(2), 'page_2');
+      expect(CacheConstants.usersPageKey(2868), 'page_2868');
     });
 
     test('different cursors never collide', () async {
       await dataSource.cacheUsersPage(
-          null, page(<UserSummary>[_u(1, 'a')], nextSince: 1));
+          null, page(<UserSummary>[reqresUser(1)], nextCursor: 2));
       await dataSource.cacheUsersPage(
-          47, page(<UserSummary>[_u(48, 'b')], nextSince: 48));
+          2, page(<UserSummary>[reqresUser(7)], nextCursor: null));
 
       expect(dataSource.getCachedUsersPage(null)!.users.single.id, 1);
-      expect(dataSource.getCachedUsersPage(47)!.users.single.id, 48);
+      expect(dataSource.getCachedUsersPage(2)!.users.single.id, 7);
     });
   });
 
   group('batches', () {
     test('round trip through the generated adapter', () async {
       await dataSource.cacheUsersPage(
-        47,
-        page(<UserSummary>[_u(48, 'defunkt')], nextSince: 48),
-      );
+          1, page(<UserSummary>[reqresUser(2, first: 'Janet')], nextCursor: 2));
 
-      final CachedPageModel? cached = dataSource.getCachedUsersPage(47);
+      final CachedPageModel? cached = dataSource.getCachedUsersPage(1);
 
       expect(cached, isNotNull);
-      expect(cached!.users.single.login, 'defunkt');
-      expect(cached.nextSince, 48);
-      expect(cached.requestedSince, 47);
+      expect(cached!.users.single.displayName, startsWith('Janet'));
+      expect(cached.users.single.email, isNotNull);
+      expect(cached.nextCursor, 2);
+      expect(cached.requestedCursor, 1);
       expect(cached.isStale(CacheConstants.pagesTtl), isFalse);
     });
 
@@ -92,47 +84,95 @@ void main() {
     });
 
     test('an empty batch is cached as a normal record, not skipped', () async {
-      await dataSource.cacheUsersPage(999, page(const <UserSummary>[]));
+      await dataSource.cacheUsersPage(3, page(const <UserSummary>[]));
 
-      final CachedPageModel? cached = dataSource.getCachedUsersPage(999);
-
+      final CachedPageModel? cached = dataSource.getCachedUsersPage(3);
       expect(cached, isNotNull);
-      expect(cached!.users, isEmpty);
-      expect(cached.toEntity().hasReachedEnd, isTrue,
-          reason: 'remembering the end avoids spending a request to rediscover it');
+      expect(cached!.toEntity().hasReachedEnd, isTrue);
     });
   });
 
   group('profiles', () {
     test('round trip, stamped with a cache time', () async {
-      final UserDetailModel detail =
-          UserDetailModel.fromJson(fixtureMap('user_detail.json'));
-      expect(detail.cachedAt, isNull, reason: 'unstamped before caching');
+      await dataSource.cacheUserDetail(reqresDetail(2, first: 'Janet'));
 
-      await dataSource.cacheUserDetail(detail);
-      final UserDetailModel? cached = dataSource.getCachedUserDetail('mojombo');
+      final UserDetailModel? cached = dataSource.getCachedUserDetail('2');
 
       expect(cached, isNotNull);
       expect(cached!.cachedAt, isNotNull);
-      expect(cached.name, 'Tom Preston-Werner');
-      expect(cached.email, isNull, reason: 'nulls survive the round trip');
+      expect(cached.displayName, startsWith('Janet'));
+      expect(cached.hasEmail, isTrue);
       expect(cached.isStale(CacheConstants.detailsTtl), isFalse);
     });
 
-    test('lookup is case-insensitive -- one GitHub user, one cache entry',
-        () async {
+    test('a GitHub-shaped profile keeps its extras', () async {
       await dataSource.cacheUserDetail(
-        UserDetailModel.fromJson(fixtureMap('user_detail.json')),
+        githubDetail(1, 'mojombo', bio: 'Cofounder', location: 'SF'),
       );
+
+      final UserDetailModel cached =
+          dataSource.getCachedUserDetail('mojombo')!;
+
+      expect(cached.bio, 'Cofounder');
+      expect(cached.hasStats, isTrue);
+      expect(cached.followers, 23000);
+    });
+
+    test('lookup is case-insensitive -- one user, one cache entry', () async {
+      await dataSource.cacheUserDetail(githubDetail(1, 'mojombo'));
 
       expect(dataSource.getCachedUserDetail('MoJoMbO'), isNotNull);
     });
+  });
 
-    test('an unstamped record reads as stale rather than trusted forever', () {
-      final UserDetailModel detail =
-          UserDetailModel.fromJson(fixtureMap('user_detail.json'));
+  // B3: the box gained an entry per profile viewed and never lost one.
+  group('detail cache is bounded', () {
+    test('entries past the TTL are evicted on the next write', () async {
+      // Written directly, back-dated well past the 6h TTL.
+      await detailsBox.put(
+        'stale-one',
+        UserDetailModel.fromEntity(
+          reqresDetail(99),
+          cachedAt: DateTime.now().subtract(const Duration(days: 2)),
+        ),
+      );
+      expect(detailsBox.length, 1);
 
-      expect(detail.isStale(CacheConstants.detailsTtl), isTrue);
+      await dataSource.cacheUserDetail(reqresDetail(1));
+
+      expect(detailsBox.containsKey('stale-one'), isFalse,
+          reason: 'expired entries would be refetched anyway -- dead weight');
+      expect(dataSource.getCachedUserDetail('1'), isNotNull);
+    });
+
+    test('oldest-by-write are evicted above the ceiling', () async {
+      final DateTime base = DateTime.now();
+      // Fill past the ceiling, each a minute newer than the last.
+      for (int i = 0; i < CacheConstants.maxCachedDetails + 10; i++) {
+        await detailsBox.put(
+          'user-$i',
+          UserDetailModel.fromEntity(
+            reqresDetail(i),
+            cachedAt: base.subtract(Duration(minutes: 300 - i)),
+          ),
+        );
+      }
+
+      // One more write triggers eviction.
+      await dataSource.cacheUserDetail(reqresDetail(9999));
+
+      expect(detailsBox.length,
+          lessThanOrEqualTo(CacheConstants.maxCachedDetails));
+      // The newest survives, the oldest does not.
+      expect(dataSource.getCachedUserDetail('9999'), isNotNull);
+      expect(detailsBox.containsKey('user-0'), isFalse);
+    });
+
+    test('a cache under the ceiling is left alone', () async {
+      await dataSource.cacheUserDetail(reqresDetail(1));
+      await dataSource.cacheUserDetail(reqresDetail(2));
+
+      expect(detailsBox.length, 2);
     });
   });
 
@@ -141,28 +181,24 @@ void main() {
         () async {
       // Written deliberately out of order.
       await dataSource.cacheUsersPage(
-          47, page(<UserSummary>[_u(48, 'c'), _u(49, 'd')], nextSince: 49));
+          2, page(<UserSummary>[reqresUser(7), reqresUser(8)], nextCursor: 3));
       await dataSource.cacheUsersPage(
-          null, page(<UserSummary>[_u(1, 'a'), _u(2, 'b')], nextSince: 2));
-      await dataSource.cacheUsersPage(
-          2, page(<UserSummary>[_u(3, 'e')], nextSince: 47));
+          null, page(<UserSummary>[reqresUser(1), reqresUser(2)], nextCursor: 2));
 
       expect(
-        dataSource.getAllCachedUsers().map((UserSummary u) => u.login),
-        <String>['a', 'b', 'e', 'c', 'd'],
+        dataSource.getAllCachedUsers().map((UserSummary u) => u.id),
+        <int>[1, 2, 7, 8],
       );
     });
 
     test('deduplicates by id across overlapping batches', () async {
       await dataSource.cacheUsersPage(
-          null, page(<UserSummary>[_u(1, 'a'), _u(2, 'b')], nextSince: 2));
+          null, page(<UserSummary>[reqresUser(1), reqresUser(2)], nextCursor: 2));
       await dataSource.cacheUsersPage(
-          2, page(<UserSummary>[_u(2, 'b'), _u(3, 'c')], nextSince: 3));
+          2, page(<UserSummary>[reqresUser(2), reqresUser(3)], nextCursor: null));
 
-      expect(
-        dataSource.getAllCachedUsers().map((UserSummary u) => u.id),
-        <int>[1, 2, 3],
-      );
+      expect(dataSource.getAllCachedUsers().map((UserSummary u) => u.id),
+          <int>[1, 2, 3]);
     });
 
     test('is empty when nothing is cached', () {
@@ -172,11 +208,10 @@ void main() {
     test('serves the offline search corpus regardless of staleness', () async {
       await pagesBox.put(
         CacheConstants.usersPageKey(null),
-        CachedPageModel(
-          users: <UserSummaryModel>[_u(1, 'ancient')],
-          nextSince: 1,
-          requestedSince: null,
-          cachedAt: DateTime.now().subtract(const Duration(days: 30)),
+        CachedPageModel.fromEntity(
+          page(<UserSummary>[reqresUser(1)], nextCursor: 2),
+          requestedCursor: null,
+          now: DateTime.now().subtract(const Duration(days: 30)),
         ),
       );
 
@@ -184,19 +219,27 @@ void main() {
     });
   });
 
-  group('clearAll', () {
-    test('empties both boxes', () async {
+  group('clearing', () {
+    test('clearUsersPages empties batches but preserves profiles', () async {
       await dataSource.cacheUsersPage(
-          null, page(<UserSummary>[_u(1, 'a')], nextSince: 1));
-      await dataSource.cacheUserDetail(
-        UserDetailModel.fromJson(fixtureMap('user_detail.json')),
-      );
+          null, page(<UserSummary>[reqresUser(1)], nextCursor: 2));
+      await dataSource.cacheUserDetail(reqresDetail(1));
+
+      await dataSource.clearUsersPages();
+
+      expect(dataSource.getCachedUsersPage(null), isNull);
+      expect(dataSource.getCachedUserDetail('1'), isNotNull);
+    });
+
+    test('clearAll empties both', () async {
+      await dataSource.cacheUsersPage(
+          null, page(<UserSummary>[reqresUser(1)], nextCursor: 2));
+      await dataSource.cacheUserDetail(reqresDetail(1));
 
       await dataSource.clearAll();
 
-      expect(dataSource.getCachedUsersPage(null), isNull);
-      expect(dataSource.getCachedUserDetail('mojombo'), isNull);
       expect(dataSource.getAllCachedUsers(), isEmpty);
+      expect(dataSource.getCachedUserDetail('1'), isNull);
     });
   });
 }

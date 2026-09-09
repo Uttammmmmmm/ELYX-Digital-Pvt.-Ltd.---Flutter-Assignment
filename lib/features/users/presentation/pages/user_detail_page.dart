@@ -8,11 +8,13 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/error/failures.dart';
+import '../../../../core/theme/app_spacing.dart';
 import '../../domain/entities/user_detail.dart';
 import '../../domain/entities/user_summary.dart';
 import '../bloc/user_detail_bloc.dart';
 import '../bloc/user_detail_event.dart';
 import '../bloc/user_detail_state.dart';
+import '../strings/users_strings.dart';
 import '../widgets/detail_body_skeleton.dart';
 import '../widgets/detail_info_row.dart';
 import '../widgets/detail_stat_row.dart';
@@ -26,8 +28,7 @@ String userAvatarHeroTag(int id) => 'user_avatar_$id';
 /// Route-level wrapper.
 ///
 /// Takes the [UserSummary] the list already had, so the screen opens with a
-/// real avatar and login instead of a spinner. The ONLY `sl<T>()` call on
-/// this screen.
+/// real avatar and name instead of a spinner. The ONLY `sl<T>()` call here.
 class UserDetailPage extends StatelessWidget {
   const UserDetailPage({required this.summary, super.key});
 
@@ -37,12 +38,12 @@ class UserDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider<UserDetailBloc>(
-      // BlocProvider owns the bloc it creates and calls close() in its own
+      // BlocProvider owns the bloc it creates and closes it in its own
       // dispose(), which runs when this route is popped. Combined with the
       // isClosed guard in the bloc, an in-flight request that lands after the
       // pop is discarded instead of emitting into a closed controller.
       create: (_) => sl<UserDetailBloc>(param1: summary)
-        ..add(UserDetailRequested(summary.login)),
+        ..add(UserDetailRequested(summary.detailId)),
       child: const UserDetailView(),
     );
   }
@@ -57,16 +58,16 @@ class UserDetailView extends StatelessWidget {
     return BlocBuilder<UserDetailBloc, UserDetailState>(
       builder: (BuildContext context, UserDetailState state) {
         return Scaffold(
-          appBar: AppBar(title: Text(state.login)),
+          appBar: AppBar(title: Text(state.displayName)),
           body: ListView(
             children: <Widget>[
               // Rendered from the SEED, so it is on screen immediately and
               // stays put through loading, success and failure alike.
               _Header(state: state),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.md),
               const Divider(height: 1),
               _Body(state: state),
-              const SizedBox(height: 32),
+              const SizedBox(height: AppSpacing.xl),
             ],
           ),
         );
@@ -85,49 +86,56 @@ class _Header extends StatelessWidget {
     final ThemeData theme = Theme.of(context);
     final UserDetail? detail = state.detail;
 
-    // Name falls back to the login, so this line is never blank -- not while
-    // loading, not on failure, not when GitHub has no name for the user.
-    final String displayName = detail?.displayName ?? state.seed.login;
+    // Never blank -- displayName falls back through name, then handle, then
+    // id -- and available from the seed, so it is on screen before the
+    // request returns and survives a failure.
+    final String displayName = state.displayName;
+    final String? handle = detail?.handle ?? state.seed.handle;
 
     return Column(
       children: <Widget>[
-        const SizedBox(height: 24),
+        const SizedBox(height: AppSpacing.lg),
         Center(
-          // Shared element with the list tile. The tag is keyed by id, which
-          // is unique and stable; keying by login would break if two routes
-          // ever showed the same user.
+          // Shared element with the list tile. Keyed by id, which is unique
+          // and stable across both sources.
           child: Hero(
             tag: userAvatarHeroTag(state.seed.id),
             child: UserAvatar(
               url: state.seed.avatarUrl,
-              login: state.seed.login,
-              radius: 48,
+              login: displayName,
+              radius: AppSizes.avatarLg,
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.md),
         Text(
           displayName,
           key: const Key('detail_name'),
           style: theme.textTheme.headlineSmall,
           textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
         ),
-        // Suppressed when the name IS the login -- no point printing it twice.
-        if (displayName != state.seed.login)
+        // Suppressed when the handle IS the display name, and absent entirely
+        // on sources that have no handle.
+        if (handle != null && handle != displayName)
           Text(
-            '@${state.seed.login}',
+            '@$handle',
             key: const Key('detail_handle'),
-            style: theme.textTheme.bodyMedium
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodyMedium,
           ),
         if (detail?.bio != null) ...<Widget>[
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.sm + AppSpacing.xs),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
             child: Text(
               detail!.bio!,
               key: const Key('detail_bio'),
               textAlign: TextAlign.center,
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
               style: theme.textTheme.bodyMedium,
             ),
           ),
@@ -146,7 +154,7 @@ class _Body extends StatelessWidget {
     Clipboard.setData(ClipboardData(text: value));
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text('$label copied')));
+      ..showSnackBar(SnackBar(content: Text(UsersStrings.copied(label))));
   }
 
   @override
@@ -159,14 +167,12 @@ class _Body extends StatelessWidget {
       final Failure? failure = state.failure;
       if (failure == null) return const SizedBox.shrink();
 
-      // No fixed height. A hardcoded box (this was 360dp) overflows the
-      // moment the content needs more -- larger system font, a longer failure
-      // message, a shorter screen. The state widgets size themselves and
-      // scroll when the space is short, so the height is theirs to decide.
-      final RateLimitFailure? rateLimited = state.rateLimitFailure;
+      // No fixed height: the state widgets size themselves and scroll when
+      // the space is short.
       void onRetry() =>
           context.read<UserDetailBloc>().add(const UserDetailRetried());
 
+      final RateLimitFailure? rateLimited = state.rateLimitFailure;
       return rateLimited != null
           ? RateLimitView(resetAt: rateLimited.resetAt, onRetry: onRetry)
           : ErrorView(failure: failure, onRetry: onRetry);
@@ -174,84 +180,88 @@ class _Body extends StatelessWidget {
 
     return Column(
       children: <Widget>[
-        const SizedBox(height: 16),
-        DetailStatRow(detail: detail),
-        const SizedBox(height: 8),
-        const Divider(height: 1),
+        // Hidden entirely on a source with no counters, rather than rendered
+        // as three zeros -- which would be fabricated data.
+        if (detail.hasStats) ...<Widget>[
+          const SizedBox(height: AppSpacing.md),
+          DetailStatRow(detail: detail),
+          const SizedBox(height: AppSpacing.sm),
+          const Divider(height: 1),
+        ],
 
-        // --- The three the assignment requires: always rendered -----------
+        // --- The three the assignment requires: ALWAYS rendered -----------
         DetailInfoRow(
           key: const Key('row_name'),
           icon: Icons.badge_outlined,
-          label: 'Name',
+          label: UsersStrings.labelName,
           value: detail.displayName,
         ),
         DetailInfoRow(
           key: const Key('row_email'),
           icon: Icons.alternate_email,
-          label: 'Email',
-          value: detail.email ?? 'Not publicly listed',
+          label: UsersStrings.labelEmail,
+          value: detail.email ?? UsersStrings.emailUnavailable,
           unavailable: !detail.hasEmail,
           onTap: detail.hasEmail
-              ? () => _copy(context, 'Email', detail.email!)
+              ? () => _copy(context, UsersStrings.labelEmail, detail.email!)
               : null,
         ),
         // PHONE: permanently unavailable, and that is CORRECT, not a stub.
-        //
-        // The assignment asks for a phone number. The GitHub REST API exposes
-        // none -- not null, not optional: there is no phone concept anywhere
-        // in the user resource. This is a documented gap between the
-        // assignment spec and the API it was pointed at, so the screen states
-        // it plainly instead of hiding the row or, far worse, generating a
-        // plausible-looking fake number. A fabricated value would be
-        // indistinguishable from real data to anyone reading the screen.
-        // There is deliberately no `phone` field on UserDetail to read from.
+        // NEITHER supported API exposes a phone number -- reqres returns id,
+        // email, first_name, last_name and avatar; GitHub has no phone
+        // concept at any scope. This is a documented gap between the
+        // assignment and the APIs it names, stated plainly rather than
+        // hidden, and never fabricated. There is no `phone` field on any
+        // entity to read from, by construction.
         const DetailInfoRow(
           key: Key('row_phone'),
           icon: Icons.phone_outlined,
-          label: 'Phone',
-          value: 'Not provided by the GitHub API',
+          label: UsersStrings.labelPhone,
+          value: UsersStrings.phoneUnavailable,
           unavailable: true,
         ),
 
         const Divider(height: 1),
 
-        // --- Optional: hidden entirely when null --------------------------
+        // --- Optional: hidden entirely when the source has no value -------
         if (detail.company != null)
           DetailInfoRow(
             key: const Key('row_company'),
             icon: Icons.business_outlined,
-            label: 'Company',
+            label: UsersStrings.labelCompany,
             value: detail.company!,
           ),
         if (detail.location != null)
           DetailInfoRow(
             key: const Key('row_location'),
             icon: Icons.place_outlined,
-            label: 'Location',
+            label: UsersStrings.labelLocation,
             value: detail.location!,
           ),
         if (detail.blog != null)
           DetailInfoRow(
             key: const Key('row_blog'),
             icon: Icons.link,
-            label: 'Website',
+            label: UsersStrings.labelWebsite,
             value: detail.blog!,
-            onTap: () => _copy(context, 'Website', detail.blog!),
+            onTap: () => _copy(context, UsersStrings.labelWebsite, detail.blog!),
           ),
-        DetailInfoRow(
-          key: const Key('row_member_since'),
-          icon: Icons.calendar_today_outlined,
-          label: 'Member since',
-          value: DateFormat.yMMMM().format(detail.createdAt),
-        ),
-        DetailInfoRow(
-          key: const Key('row_profile'),
-          icon: Icons.open_in_new,
-          label: 'Profile',
-          value: detail.htmlUrl,
-          onTap: () => _copy(context, 'Profile URL', detail.htmlUrl),
-        ),
+        if (detail.createdAt != null)
+          DetailInfoRow(
+            key: const Key('row_member_since'),
+            icon: Icons.calendar_today_outlined,
+            label: UsersStrings.labelMemberSince,
+            value: DateFormat.yMMMM().format(detail.createdAt!),
+          ),
+        if (detail.profileUrl != null)
+          DetailInfoRow(
+            key: const Key('row_profile'),
+            icon: Icons.open_in_new,
+            label: UsersStrings.labelProfile,
+            value: detail.profileUrl!,
+            onTap: () =>
+                _copy(context, UsersStrings.labelProfile, detail.profileUrl!),
+          ),
       ],
     );
   }

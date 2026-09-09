@@ -1,56 +1,47 @@
-/// Wire + Hive representation of [UserSummary].
+/// Hive representation of [UserSummary].
 library;
 
 import 'package:hive_ce/hive.dart';
 
 import '../../../../core/storage/hive_type_ids.dart';
 import '../../domain/entities/user_summary.dart';
-import 'json_parsing.dart';
 
 part 'user_summary_model.g.dart';
 
-/// [UserSummary] plus JSON and Hive serialization.
+/// [UserSummary] plus Hive persistence.
 ///
-/// Extends the entity and declares NO storage of its own -- the `@HiveField`
-/// getters below delegate straight to the inherited fields via `super`, so
-/// there is exactly one copy of every value. Annotating them here rather than
-/// on the entity is what keeps `domain/` free of any Hive import.
+/// Extends the entity and declares no storage of its own -- the `@HiveField`
+/// getters delegate to inherited fields via `super`, so there is one copy of
+/// every value and `domain/` stays free of any Hive import.
+///
+/// SOURCE-NEUTRAL: this persists the union shape, not either API's JSON. The
+/// API implementations parse their own responses into entities; this only has
+/// to store what came out. That is why there is no `fromJson` here any more.
 @HiveType(typeId: HiveTypeIds.userSummary)
 class UserSummaryModel extends UserSummary {
   const UserSummaryModel({
     required super.id,
-    required super.login,
+    required super.detailId,
     required super.avatarUrl,
-    required super.htmlUrl,
-    required super.type,
-    required super.siteAdmin,
+    super.handle,
+    super.firstName,
+    super.lastName,
+    super.email,
+    super.profileUrl,
+    super.accountType,
   });
 
-  /// Parses one element of a `GET /users` array.
-  ///
-  /// Every field is coerced rather than cast. A single malformed record must
-  /// not throw away the whole batch: GitHub occasionally returns a numeric id
-  /// as a string, and a null where a string is documented. `whereType` at the
-  /// call site drops entries that are not objects at all; this handles the
-  /// ones that are objects but wrong inside.
-  factory UserSummaryModel.fromJson(Map<String, dynamic> json) =>
-      UserSummaryModel(
-        id: asInt(json, 'id'),
-        login: asString(json, 'login'),
-        avatarUrl: asString(json, 'avatar_url'),
-        htmlUrl: asString(json, 'html_url'),
-        type: asString(json, 'type', fallback: 'User'),
-        siteAdmin: asBool(json, 'site_admin'),
-      );
-
-  /// Narrows an entity back to a model.
+  /// Narrows an entity for caching.
   factory UserSummaryModel.fromEntity(UserSummary user) => UserSummaryModel(
         id: user.id,
-        login: user.login,
+        detailId: user.detailId,
         avatarUrl: user.avatarUrl,
-        htmlUrl: user.htmlUrl,
-        type: user.type,
-        siteAdmin: user.siteAdmin,
+        handle: user.handle,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        profileUrl: user.profileUrl,
+        accountType: user.accountType,
       );
 
   @HiveField(0)
@@ -59,7 +50,7 @@ class UserSummaryModel extends UserSummary {
 
   @HiveField(1)
   @override
-  String get login => super.login;
+  String get detailId => super.detailId;
 
   @HiveField(2)
   @override
@@ -67,23 +58,25 @@ class UserSummaryModel extends UserSummary {
 
   @HiveField(3)
   @override
-  String get htmlUrl => super.htmlUrl;
+  String? get handle => super.handle;
 
   @HiveField(4)
   @override
-  String get type => super.type;
+  String? get firstName => super.firstName;
 
   @HiveField(5)
   @override
-  bool get siteAdmin => super.siteAdmin;
+  String? get lastName => super.lastName;
 
-  /// Emits GitHub's own field names, so a payload survives a round trip.
-  Map<String, dynamic> toJson() => <String, dynamic>{
-        'id': id,
-        'login': login,
-        'avatar_url': avatarUrl,
-        'html_url': htmlUrl,
-        'type': type,
-        'site_admin': siteAdmin,
-      };
+  @HiveField(6)
+  @override
+  String? get email => super.email;
+
+  @HiveField(7)
+  @override
+  String? get profileUrl => super.profileUrl;
+
+  @HiveField(8)
+  @override
+  String? get accountType => super.accountType;
 }
