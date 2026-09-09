@@ -3,5 +3,22 @@
   "search.exclude": {
     "**/*.mocks.dart": true
   },
-  "java.configuration.updateBuildConfiguration": "interactive"
+  "java.configuration.updateBuildConfiguration": "interactive",
+  "java.import.exclusions": [
+    "**/node_modules/**",
+    "**/.metadata/**",
+    "**/archetype-resources/**",
+    "**/META-INF/maven/**",
+    "**/.pub-cache/**",
+    "**/build/**",
+    "**/.dart_tool/**"
+  ],
+  "gradle.nestedProjects": false,
+  "files.watcherExclude": {
+    "**/.pub-cache/**": true,
+    "**/build/**": true,
+    "**/.dart_tool/**": true
+  },
+  "java.import.gradle.enabled": false,
+  "gradle.autoDetect": "off"
 }
