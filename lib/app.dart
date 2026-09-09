@@ -22,6 +22,9 @@ class ElyxApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
+      // Follows the OS setting; both themes come from the same seed colour,
+      // so every state is legible in either.
+      themeMode: ThemeMode.system,
       initialRoute: AppRoutes.usersList,
       onGenerateRoute: RouteGenerator.generate,
       // Catches a pushNamed for a name the generator does not know at all.

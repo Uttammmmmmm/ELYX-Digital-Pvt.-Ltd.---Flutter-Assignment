@@ -3,6 +3,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_spacing.dart';
+
 /// A thin bar shown while the device is offline and cached data is on screen.
 ///
 /// Its whole purpose is honesty: the repository deliberately serves stale
@@ -33,15 +35,15 @@ class OfflineBanner extends StatelessWidget {
           key: const Key('offline_banner'),
           color: theme.colorScheme.secondaryContainer,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
             child: Row(
               children: <Widget>[
                 Icon(
                   Icons.cloud_off,
-                  size: 16,
+                  size: AppSizes.iconSm,
                   color: theme.colorScheme.onSecondaryContainer,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
                     "You're offline — showing saved users, which may be "

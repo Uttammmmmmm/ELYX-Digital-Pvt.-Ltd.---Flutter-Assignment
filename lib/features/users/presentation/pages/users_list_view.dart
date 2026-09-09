@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/routing/app_routes.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../domain/entities/user_summary.dart';
 import '../bloc/users_bloc.dart';
 import '../bloc/users_event.dart';
@@ -18,7 +20,9 @@ import '../widgets/no_search_results_view.dart';
 import '../widgets/offline_banner.dart';
 import '../widgets/pagination_footer.dart';
 import '../widgets/rate_limit_view.dart';
+import '../widgets/user_grid_card.dart';
 import '../widgets/user_list_tile.dart';
+import '../widgets/user_tile_metrics.dart';
 import '../widgets/user_search_bar.dart';
 
 /// The list itself. Expects a [UsersBloc] above it.
@@ -38,6 +42,17 @@ class UsersListView extends StatefulWidget {
 }
 
 class _UsersListViewState extends State<UsersListView> {
+  /// Held in State, so it survives a rebuild caused by rotation.
+  ///
+  /// ROTATION, AND WHAT SURVIVES IT. Bloc state survives automatically and for
+  /// free: the bloc lives above this widget in the tree, is not rebuilt when
+  /// constraints change, and simply re-emits its current state to the new
+  /// layout -- which is why rotating does NOT refire pagination or reset the
+  /// loaded users. Scroll offset is different. Rotating a phone crosses the
+  /// 600dp breakpoint, so the ListView is replaced by a GridView: a genuinely
+  /// different scroll view, whose offset would start at zero. The
+  /// PageStorageKey on each view buckets its offset by key within the route,
+  /// so returning to a layout restores where the user was.
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
 
@@ -201,34 +216,90 @@ class _UsersListViewState extends State<UsersListView> {
 
     return RefreshIndicator(
       onRefresh: _onRefresh,
-      child: ListView.builder(
-        key: const Key('users_list'),
-        controller: _scrollController,
-        // Always scrollable, so pull-to-refresh works on a short list too.
-        physics: const AlwaysScrollableScrollPhysics(),
-        // +1 for the footer slot.
-        itemCount: state.visibleUsers.length + 1,
-        itemBuilder: (BuildContext context, int index) {
-          if (index == state.visibleUsers.length) {
-            return PaginationFooter(
-              mode: _footerMode(state),
-              errorMessage: state.failure?.message,
-              onRetry: _retry,
-            );
-          }
-
-          // Renders visibleUsers, never allUsers: the search filter is the
-          // view, the pagination sequence is the model.
-          final UserSummary user = state.visibleUsers[index];
-          return UserListTile(
-            key: Key('user_tile_${user.id}'),
-            user: user,
-            onTap: () => _openDetail(user),
-          );
-        },
+      // Only the ARRANGEMENT changes with width. Same bloc, same state, same
+      // widgets for every status -- a grid is not a different screen.
+      child: ResponsiveBuilder(
+        builder: (BuildContext context, WindowSizeClass sizeClass) =>
+            sizeClass == WindowSizeClass.compact
+                ? _buildList(context, state)
+                : _buildGrid(context, state, sizeClass),
       ),
     );
   }
+
+  Widget _buildList(BuildContext context, UsersState state) {
+    return ListView.builder(
+      // PageStorageKey, not a plain Key: this is what persists the scroll
+      // offset across the list <-> grid swap on rotation.
+      key: const PageStorageKey<String>('users_list'),
+      controller: _scrollController,
+      // Uniform extent, so scroll offsets stay meaningful and the list does
+      // not measure children.
+      itemExtent: UserTileMetrics.heightFor(context),
+      physics: const AlwaysScrollableScrollPhysics(),
+      itemCount: state.visibleUsers.length + 1,
+      itemBuilder: (BuildContext context, int index) {
+        if (index == state.visibleUsers.length) return _footer(state);
+
+        // Renders visibleUsers, never allUsers: the search filter is the
+        // view, the pagination sequence is the model.
+        final UserSummary user = state.visibleUsers[index];
+        return UserListTile(
+          key: Key('user_tile_${user.id}'),
+          user: user,
+          onTap: () => _openDetail(user),
+        );
+      },
+    );
+  }
+
+  Widget _buildGrid(
+    BuildContext context,
+    UsersState state,
+    WindowSizeClass sizeClass,
+  ) {
+    final int columns = sizeClass.gridColumns;
+
+    // The footer spans the full width, so it is a separate sliver rather than
+    // a grid cell -- a "reached the end" message squeezed into one column of
+    // three reads as a broken card.
+    return CustomScrollView(
+      key: const PageStorageKey<String>('users_grid'),
+      controller: _scrollController,
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: <Widget>[
+        SliverPadding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          sliver: SliverGrid(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: columns,
+              mainAxisSpacing: AppSpacing.md,
+              crossAxisSpacing: AppSpacing.md,
+              mainAxisExtent: UserTileMetrics.cardHeightFor(context),
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (BuildContext context, int index) {
+                final UserSummary user = state.visibleUsers[index];
+                return UserGridCard(
+                  key: Key('user_tile_${user.id}'),
+                  user: user,
+                  onTap: () => _openDetail(user),
+                );
+              },
+              childCount: state.visibleUsers.length,
+            ),
+          ),
+        ),
+        SliverToBoxAdapter(child: _footer(state)),
+      ],
+    );
+  }
+
+  Widget _footer(UsersState state) => PaginationFooter(
+        mode: _footerMode(state),
+        errorMessage: state.failure?.message,
+        onRetry: _retry,
+      );
 
   /// Which footer the end of the list should show.
   ///

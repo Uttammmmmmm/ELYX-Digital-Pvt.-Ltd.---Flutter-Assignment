@@ -3,6 +3,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_spacing.dart';
+
 /// Shown when the query is non-empty and `visibleUsers` is empty.
 ///
 /// Deliberately different from `EmptyView` in icon, copy and action, because
@@ -38,14 +40,14 @@ class NoSearchResultsView extends StatelessWidget {
     return Center(
       key: const Key('no_search_results_view'),
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(Icons.search_off, size: 48, color: theme.colorScheme.outline),
-            const SizedBox(height: 16),
+            Icon(Icons.search_off, size: AppSizes.iconXl, color: theme.colorScheme.outline),
+            const SizedBox(height: AppSpacing.md),
             Text('No matches for "$query"', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Text(
               'GitHub has no username filter, so only the $loadedCount users '
               'loaded so far were searched.',
@@ -53,15 +55,15 @@ class NoSearchResultsView extends StatelessWidget {
               style: theme.textTheme.bodyMedium
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: AppSpacing.md + AppSpacing.xs),
             Wrap(
-              spacing: 12,
+              spacing: AppSpacing.sm + AppSpacing.xs,
               alignment: WrapAlignment.center,
               children: <Widget>[
                 FilledButton.tonalIcon(
                   key: const Key('clear_search_button'),
                   onPressed: onClearSearch,
-                  icon: const Icon(Icons.clear, size: 18),
+                  icon: const Icon(Icons.clear, size: AppSizes.iconMd),
                   label: const Text('Clear search'),
                 ),
                 if (onLoadMore != null)

@@ -85,6 +85,9 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: 6.0.0
 
+  # Generates Android/iOS launcher icons from one source PNG.
+  flutter_launcher_icons: 0.14.4
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
@@ -126,3 +129,22 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# ---------------------------------------------------------------------------
+# Launcher icons. Regenerate after changing the source PNG:
+#   dart run flutter_launcher_icons
+# ---------------------------------------------------------------------------
+flutter_launcher_icons:
+  image_path: "assets/icon/app_icon.png"
+
+  android: "launcher_icon"
+  min_sdk_android: 21
+  # Adaptive icons: Android composites the foreground over the background and
+  # then applies a launcher-chosen mask, so the foreground needs generous
+  # padding or the mark gets clipped on round-icon launchers.
+  adaptive_icon_background: "#24292F"
+  adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
+
+  ios: true
+  # iOS rejects icons with an alpha channel at App Store submission.
+  remove_alpha_ios: true

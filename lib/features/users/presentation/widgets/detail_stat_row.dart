@@ -3,6 +3,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_spacing.dart';
+
 import '../../domain/entities/user_detail.dart';
 import '../formatters/user_display.dart';
 
@@ -36,20 +38,26 @@ class _Stat extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
 
-    return Column(
+    return Semantics(
+      label: '$value $label',
+      excludeSemantics: true,
+      child: Column(
       children: <Widget>[
         Text(
           UserDisplay.count(value),
+          maxLines: 1,
           style: theme.textTheme.titleMedium
               ?.copyWith(fontWeight: FontWeight.w600),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: AppSpacing.xs / 2),
         Text(
           label,
-          style: theme.textTheme.labelSmall
-              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.labelSmall,
         ),
       ],
+      ),
     );
   }
 }

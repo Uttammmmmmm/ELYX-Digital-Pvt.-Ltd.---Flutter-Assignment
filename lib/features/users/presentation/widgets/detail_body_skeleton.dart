@@ -3,6 +3,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_spacing.dart';
+
 /// Skeleton for the lower half of the detail screen.
 ///
 /// Only the BODY is a skeleton -- the header is already real, rendered from
@@ -22,17 +24,17 @@ class DetailBodySkeleton extends StatelessWidget {
       children: <Widget>[
         for (int i = 0; i < rowCount; i++)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm + AppSpacing.xs),
             child: Row(
               children: <Widget>[
                 Container(width: 20, height: 20, color: base),
-                const SizedBox(width: 16),
+                const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Container(height: 10, width: 70, color: base),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: AppSpacing.xs),
                       Container(height: 12, width: 160, color: base),
                     ],
                   ),

@@ -3,6 +3,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_spacing.dart';
+
 /// Shown when GitHub returned zero users and no search is active.
 ///
 /// Visually and textually distinct from [NoSearchResultsView]: this one means
@@ -22,14 +24,14 @@ class EmptyView extends StatelessWidget {
     return Center(
       key: const Key('empty_view'),
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(Icons.people_outline, size: 48, color: theme.colorScheme.outline),
-            const SizedBox(height: 16),
+            Icon(Icons.people_outline, size: AppSizes.iconXl, color: theme.colorScheme.outline),
+            const SizedBox(height: AppSpacing.md),
             Text('No users available', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Text(
               'GitHub returned no users for this request.',
               textAlign: TextAlign.center,
@@ -37,10 +39,10 @@ class EmptyView extends StatelessWidget {
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
             if (onRefresh != null) ...<Widget>[
-              const SizedBox(height: 20),
+              const SizedBox(height: AppSpacing.md + AppSpacing.xs),
               OutlinedButton.icon(
                 onPressed: onRefresh,
-                icon: const Icon(Icons.refresh, size: 18),
+                icon: const Icon(Icons.refresh, size: AppSizes.iconMd),
                 label: const Text('Refresh'),
               ),
             ],

@@ -3,6 +3,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_spacing.dart';
+
 /// What the end of the list is currently doing.
 enum PaginationFooterMode {
   /// A page is in flight.
@@ -49,7 +51,7 @@ class PaginationFooter extends StatelessWidget {
       case PaginationFooterMode.loading:
         return const Padding(
           key: Key('pagination_loading'),
-          padding: EdgeInsets.symmetric(vertical: 24),
+          padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
           child: Center(
             child: SizedBox(
               width: 24,
@@ -62,7 +64,7 @@ class PaginationFooter extends StatelessWidget {
       case PaginationFooterMode.error:
         return Padding(
           key: const Key('pagination_error'),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          padding: const EdgeInsets.all(AppSpacing.md),
           child: Column(
             children: <Widget>[
               Text(
@@ -71,11 +73,11 @@ class PaginationFooter extends StatelessWidget {
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: theme.colorScheme.error),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               OutlinedButton.icon(
                 key: const Key('pagination_retry_button'),
                 onPressed: onRetry,
-                icon: const Icon(Icons.refresh, size: 18),
+                icon: const Icon(Icons.refresh, size: AppSizes.iconMd),
                 label: const Text('Retry'),
               ),
             ],
@@ -85,7 +87,7 @@ class PaginationFooter extends StatelessWidget {
       case PaginationFooterMode.end:
         return Padding(
           key: const Key('pagination_end'),
-          padding: const EdgeInsets.symmetric(vertical: 24),
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
           child: Center(
             child: Text(
               "You've reached the end",

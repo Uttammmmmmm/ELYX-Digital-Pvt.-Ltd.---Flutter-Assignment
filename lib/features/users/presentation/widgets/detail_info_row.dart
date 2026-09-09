@@ -3,6 +3,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_spacing.dart';
+
 /// One icon / label / value row.
 ///
 /// When [unavailable] is true it renders a muted, italic placeholder rather
@@ -46,31 +48,38 @@ class DetailInfoRow extends StatelessWidget {
     return InkWell(
       onTap: effectiveOnTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm + AppSpacing.xs),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Icon(
               icon,
-              size: 20,
+              size: AppSizes.iconMd,
               color: unavailable ? scheme.outline : scheme.onSurfaceVariant,
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
                     label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.labelMedium?.copyWith(
                       // Muted label as well as muted value, so the whole row
                       // reads as "nothing here" at a glance.
                       color: unavailable ? scheme.outline : scheme.onSurfaceVariant,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: AppSpacing.xs / 2),
                   Text(
+                    // Long blog URLs and bios wrap rather than overflow; a
+                    // ceiling keeps one pathological value from taking the
+                    // whole screen.
                     value,
+                    maxLines: 4,
+                    overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: unavailable ? scheme.outline : scheme.onSurface,
                       fontStyle:
@@ -84,7 +93,7 @@ class DetailInfoRow extends StatelessWidget {
               ),
             ),
             if (effectiveOnTap != null)
-              Icon(Icons.copy, size: 16, color: scheme.outline),
+              Icon(Icons.copy, size: AppSizes.iconSm, color: scheme.outline),
           ],
         ),
       ),

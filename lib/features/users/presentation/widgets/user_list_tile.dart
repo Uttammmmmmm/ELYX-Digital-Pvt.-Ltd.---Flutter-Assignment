@@ -3,20 +3,17 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_spacing.dart';
 import '../../domain/entities/user_summary.dart';
-import 'loading_view.dart' show UserTileMetrics;
 import '../pages/user_detail_page.dart' show userAvatarHeroTag;
 import 'user_avatar.dart';
+import 'user_tile_metrics.dart';
 
-/// Renders one [UserSummary].
+/// Renders one [UserSummary] as a list row.
 ///
 /// Shows only what the LIST endpoint returns -- login, avatar, id, type. No
 /// name and no email, because constraint (b) means we do not have them and
 /// fetching them would cost one request per row against a 60/hour budget.
-///
-/// Fixed height ([UserTileMetrics.height]) so `ListView.builder` can compute
-/// scroll extents without measuring children: smoother scrolling, and a
-/// meaningful `maxScrollExtent` before layout settles.
 class UserListTile extends StatelessWidget {
   const UserListTile({required this.user, required this.onTap, super.key});
 
@@ -32,60 +29,81 @@ class UserListTile extends StatelessWidget {
     final bool isPerson = user.type == 'User';
 
     return SizedBox(
-      height: UserTileMetrics.height,
+      height: UserTileMetrics.heightFor(context),
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
           child: Row(
             children: <Widget>[
               // Shared element with the detail screen.
               Hero(
                 tag: userAvatarHeroTag(user.id),
-                child: UserAvatar(url: user.avatarUrl, login: user.login),
+                child: UserAvatar(
+                  url: user.avatarUrl,
+                  login: user.login,
+                  radius: AppSizes.avatarSm,
+                ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
+                    // A login can be 39 characters; ellipsize, never overflow.
                     Text(
                       user.login,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.titleSmall,
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: AppSpacing.xs / 2),
                     Text(
                       'id ${user.id} · ${user.type}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                      style: theme.textTheme.bodySmall,
                     ),
                   ],
                 ),
               ),
-              if (!isPerson)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.secondaryContainer,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    user.type,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSecondaryContainer,
-                    ),
-                  ),
-                ),
+              if (!isPerson) _TypeBadge(type: user.type),
               Icon(Icons.chevron_right, color: theme.colorScheme.outline),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Marks organisations and bots, which are otherwise indistinguishable.
+class _TypeBadge extends StatelessWidget {
+  const _TypeBadge({required this.type});
+
+  final String type;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+
+    return Container(
+      margin: const EdgeInsets.only(right: AppSpacing.xs),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs / 2,
+      ),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      child: Text(
+        type,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: theme.textTheme.labelSmall
+            ?.copyWith(color: theme.colorScheme.onSecondaryContainer),
       ),
     );
   }

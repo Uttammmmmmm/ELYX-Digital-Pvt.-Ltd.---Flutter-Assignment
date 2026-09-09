@@ -5,6 +5,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_spacing.dart';
+
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/utils/duration_format.dart';
 
@@ -75,21 +77,21 @@ class _RateLimitViewState extends State<RateLimitView> {
     return Center(
       key: const Key('rate_limit_view'),
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(Icons.hourglass_top, size: 48, color: theme.colorScheme.error),
-            const SizedBox(height: 16),
+            Icon(Icons.hourglass_top, size: AppSizes.iconXl, color: theme.colorScheme.error),
+            const SizedBox(height: AppSpacing.md),
             Text('Rate limit reached', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Text(
               'GitHub allows 60 requests per hour without a token.',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.md),
             Text(
               canRetry
                   ? 'You can try again now.'
@@ -103,7 +105,7 @@ class _RateLimitViewState extends State<RateLimitView> {
                     : theme.colorScheme.onSurface,
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.lg),
             FilledButton.icon(
               key: const Key('rate_limit_retry_button'),
               // Null disables the button until the window reopens.
@@ -112,7 +114,7 @@ class _RateLimitViewState extends State<RateLimitView> {
               label: const Text('Try again'),
             ),
             if (!ApiConstants.hasToken) ...<Widget>[
-              const SizedBox(height: 24),
+              const SizedBox(height: AppSpacing.lg),
               Text(
                 'Tip: run with --dart-define=GITHUB_TOKEN=<token> to raise the '
                 'limit to 5000 requests per hour.',

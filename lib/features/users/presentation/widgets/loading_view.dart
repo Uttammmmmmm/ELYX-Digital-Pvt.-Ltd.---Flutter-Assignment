@@ -3,12 +3,14 @@ library;
 
 import 'package:flutter/material.dart';
 
-/// Eight placeholder rows shown during the very first page load.
+import '../../../../core/theme/app_spacing.dart';
+import 'user_tile_metrics.dart';
+
+/// Placeholder rows shown during the very first page load.
 ///
 /// A skeleton rather than a bare centred spinner: it communicates the SHAPE
-/// of what is coming, occupies the same space the real rows will, and so
-/// avoids the layout jump when they arrive. A spinner communicates only that
-/// something is happening.
+/// of what is coming, occupies the space the real rows will, and so avoids
+/// the layout jump when they arrive.
 class LoadingView extends StatelessWidget {
   const LoadingView({this.itemCount = 8, super.key});
 
@@ -22,21 +24,21 @@ class LoadingView extends StatelessWidget {
     return ListView.builder(
       key: const Key('loading_view'),
       itemCount: itemCount,
+      itemExtent: UserTileMetrics.heightFor(context),
       // The skeleton is not interactive; letting it scroll would be a lie.
       physics: const NeverScrollableScrollPhysics(),
-      itemBuilder: (BuildContext context, int index) => SizedBox(
-        height: UserTileMetrics.height,
+      itemBuilder: (BuildContext context, int index) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
         child: Row(
           children: <Widget>[
-            const SizedBox(width: 16),
-            CircleAvatar(radius: 24, backgroundColor: base),
-            const SizedBox(width: 16),
+            CircleAvatar(radius: AppSizes.avatarSm, backgroundColor: base),
+            const SizedBox(width: AppSpacing.md),
             Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 _Bar(width: 140, height: 14, color: base),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.sm),
                 _Bar(width: 80, height: 12, color: base),
               ],
             ),
@@ -45,16 +47,6 @@ class LoadingView extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Shared row height, so the skeleton and the real tile line up exactly.
-abstract final class UserTileMetrics {
-  /// Fixed height for every list row.
-  ///
-  /// Fixed rather than intrinsic so `ListView.builder` can compute extents
-  /// without measuring children, which keeps scrolling smooth on long lists
-  /// and makes `maxScrollExtent` meaningful before layout settles.
-  static const double height = 72;
 }
 
 class _Bar extends StatelessWidget {
@@ -70,7 +62,7 @@ class _Bar extends StatelessWidget {
         height: height,
         decoration: BoxDecoration(
           color: color,
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(AppRadius.xs),
         ),
       );
 }

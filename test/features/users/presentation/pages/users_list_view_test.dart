@@ -19,6 +19,7 @@ import 'package:elyx_digital_assignment/features/users/domain/usecases/get_users
 import 'package:elyx_digital_assignment/features/users/presentation/bloc/users_bloc.dart';
 import 'package:elyx_digital_assignment/features/users/presentation/bloc/users_event.dart';
 import 'package:elyx_digital_assignment/features/users/presentation/pages/users_list_view.dart';
+import 'package:elyx_digital_assignment/features/users/presentation/widgets/user_grid_card.dart';
 import 'package:elyx_digital_assignment/features/users/presentation/widgets/user_list_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -86,7 +87,20 @@ void main() {
         ),
       ).thenAnswer((_) async => Left<Failure, PaginatedUsers>(failure));
 
-  Future<void> pump(WidgetTester tester, {bool fetch = true}) async {
+  /// Pumps the view at [size].
+  ///
+  /// Defaults to a COMPACT phone. flutter_test's default surface is 800x600,
+  /// which is the `expanded` size class -- so without this every test would
+  /// silently be exercising the tablet grid.
+  Future<void> pump(
+    WidgetTester tester, {
+    bool fetch = true,
+    Size size = const Size(400, 800),
+  }) async {
+    tester.view.physicalSize = size;
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
     final UsersBloc bloc = buildBloc();
     if (fetch) bloc.add(const UsersFetched());
 
@@ -120,7 +134,7 @@ void main() {
       stubSuccess(nextSince: 2);
       await pump(tester);
 
-      expect(find.byKey(const Key('users_list')), findsOneWidget);
+      expect(find.byKey(const PageStorageKey<String>('users_list')), findsOneWidget);
       expect(find.byType(UserListTile), findsNWidgets(2));
       expect(find.byKey(const Key('user_tile_1')), findsOneWidget);
       expect(find.byKey(const Key('user_tile_2')), findsOneWidget);
@@ -296,7 +310,7 @@ void main() {
       await pump(tester);
 
       await tester.fling(
-          find.byKey(const Key('users_list')), const Offset(0, 400), 1000);
+          find.byKey(const PageStorageKey<String>('users_list')), const Offset(0, 400), 1000);
       await tester.pumpAndSettle();
 
       verify(
@@ -306,6 +320,132 @@ void main() {
           forceRefresh: true,
         ),
       ).called(1);
+    });
+  });
+
+  group('responsive layout (Material 3 window size classes)', () {
+    testWidgets('compact (< 600dp) renders a ListView of tiles', (
+      WidgetTester tester,
+    ) async {
+      stubSuccess();
+      await pump(tester, size: const Size(400, 800));
+
+      expect(find.byKey(const PageStorageKey<String>('users_list')),
+          findsOneWidget);
+      expect(find.byKey(const PageStorageKey<String>('users_grid')),
+          findsNothing);
+      expect(find.byType(UserListTile), findsWidgets);
+    });
+
+    testWidgets('medium (600-839dp) renders a 2-column grid of cards', (
+      WidgetTester tester,
+    ) async {
+      stubSuccess();
+      await pump(tester, size: const Size(700, 900));
+
+      expect(find.byKey(const PageStorageKey<String>('users_grid')),
+          findsOneWidget);
+      expect(find.byType(UserGridCard), findsWidgets);
+      expect(find.byType(UserListTile), findsNothing);
+    });
+
+    testWidgets('expanded (>= 840dp) renders a 3-column grid', (
+      WidgetTester tester,
+    ) async {
+      stubSuccess();
+      await pump(tester, size: const Size(1000, 900));
+
+      final SliverGrid grid = tester.widget<SliverGrid>(find.byType(SliverGrid));
+      final SliverGridDelegateWithFixedCrossAxisCount delegate =
+          grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+      expect(delegate.crossAxisCount, 3);
+    });
+
+    testWidgets('rotation swaps layout without refiring the first page', (
+      WidgetTester tester,
+    ) async {
+      stubSuccess(); // end of list, so no auto viewport fill muddies the count
+      await pump(tester, size: const Size(400, 800));
+      expect(find.byType(UserListTile), findsWidgets);
+
+      // Rotate into landscape, crossing the 600dp breakpoint.
+      tester.view.physicalSize = const Size(800, 400);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(UserGridCard), findsWidgets,
+          reason: 'layout swaps with width');
+      verify(
+        repository.getUsers(
+          since: null,
+          perPage: anyNamed('perPage'),
+          forceRefresh: anyNamed('forceRefresh'),
+        ),
+      ).called(1);
+    });
+  });
+
+  group('accessibility', () {
+    testWidgets('tiles survive a 2.0 text scale without overflowing', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      stubSuccess();
+      final UsersBloc bloc = buildBloc()..add(const UsersFetched());
+
+      await tester.pumpWidget(
+        wrapForTest(
+          MediaQuery(
+            data: const MediaQueryData(textScaler: TextScaler.linear(2.0)),
+            child: BlocProvider<UsersBloc>.value(
+              value: bloc,
+              child: UsersListView(connectivity: connectivity.stream),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // A RenderFlex overflow would have been recorded as an exception.
+      expect(tester.takeException(), isNull);
+      expect(find.byType(UserListTile), findsWidgets);
+    });
+
+    testWidgets('avatars carry a semantic label', (WidgetTester tester) async {
+      // The semantics tree is not built unless something asks for it.
+      // Disposed inside the body, not via addTearDown: flutter_test verifies
+      // handles at the end of the test body, before tearDowns run.
+      final SemanticsHandle handle = tester.ensureSemantics();
+
+      // The Semantics wrapper lives outside the test seam, so the fake
+      // avatar still exercises it.
+      stubSuccess();
+      await pump(tester);
+
+      // A RegExp, not a String: the tile is tappable, so the avatar's label
+      // is MERGED into the row's node ("mojombo avatar mojombo id 1 · User")
+      // and an equality match would fail.
+      expect(find.bySemanticsLabel(RegExp('mojombo avatar')), findsOneWidget);
+
+      handle.dispose();
+    });
+
+    testWidgets('the clear-search button meets the 48dp tap target', (
+      WidgetTester tester,
+    ) async {
+      stubSuccess();
+      await pump(tester);
+
+      await tester.enterText(
+          find.byKey(const Key('user_search_field')), 'mojo');
+      await tester.pumpAndSettle();
+
+      final Size size =
+          tester.getSize(find.byKey(const Key('search_clear_button')));
+      expect(size.width, greaterThanOrEqualTo(48));
+      expect(size.height, greaterThanOrEqualTo(48));
     });
   });
 }

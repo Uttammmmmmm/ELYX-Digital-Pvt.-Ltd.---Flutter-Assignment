@@ -1,4 +1,4 @@
-/// Avatar with a disk cache, placeholder and initials fallback.
+/// Avatar with a disk cache, placeholder, initials fallback and fade-in.
 library;
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -9,11 +9,15 @@ import 'package:flutter/material.dart';
 /// Three visual states, all required: the cached image, a neutral placeholder
 /// while it loads, and an initials fallback when it fails. Without the last
 /// one a broken avatar URL leaves a hole in the row.
+///
+/// Wrapped in [Semantics] with `image: true`, so a screen reader announces
+/// "Tom's avatar" rather than skipping silently over the most prominent
+/// element on the screen.
 class UserAvatar extends StatelessWidget {
   const UserAvatar({
     required this.url,
     required this.login,
-    this.radius = 24,
+    required this.radius,
     super.key,
   });
 
@@ -28,7 +32,7 @@ class UserAvatar extends StatelessWidget {
   /// Image URL.
   final String url;
 
-  /// Used for the initials fallback.
+  /// Used for the initials fallback and the semantic label.
   final String login;
 
   /// Circle radius.
@@ -36,6 +40,14 @@ class UserAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return Semantics(
+      image: true,
+      label: '$login avatar',
+      child: ExcludeSemantics(child: _image(context)),
+    );
+  }
+
+  Widget _image(BuildContext context) {
     final Widget Function(String, String, double)? override =
         debugOverrideBuilder;
     if (override != null) return override(url, login, radius);
@@ -48,6 +60,9 @@ class UserAvatar extends StatelessWidget {
         width: radius * 2,
         height: radius * 2,
         fit: BoxFit.cover,
+        // Softens the pop-in as rows scroll into view.
+        fadeInDuration: const Duration(milliseconds: 200),
+        fadeOutDuration: const Duration(milliseconds: 100),
         placeholder: (BuildContext context, String _) =>
             _Placeholder(radius: radius),
         errorWidget: (BuildContext context, String _, Object _) =>
@@ -78,19 +93,25 @@ class _Initials extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final ThemeData theme = Theme.of(context);
+
+    // Picks a semantic role by size rather than computing a font size, so the
+    // initial still respects the user's text-scale setting.
+    final TextStyle? style = radius >= 40
+        ? theme.textTheme.headlineMedium
+        : radius >= 30
+            ? theme.textTheme.titleLarge
+            : theme.textTheme.titleMedium;
 
     return Container(
       width: radius * 2,
       height: radius * 2,
       alignment: Alignment.center,
-      color: scheme.surfaceContainerHighest,
+      color: theme.colorScheme.surfaceContainerHighest,
       child: Text(
         login.isEmpty ? '?' : login[0].toUpperCase(),
-        style: TextStyle(
-          fontSize: radius * 0.8,
-          color: scheme.onSurfaceVariant,
-        ),
+        maxLines: 1,
+        style: style?.copyWith(color: theme.colorScheme.onSurfaceVariant),
       ),
     );
   }
