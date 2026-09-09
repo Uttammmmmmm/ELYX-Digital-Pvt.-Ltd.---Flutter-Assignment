@@ -100,12 +100,33 @@ class UsersState extends Equatable {
   ///
   /// Note it does NOT consider the search query: filtering is a view over
   /// loaded data, and pagination continues underneath it. See the bloc.
+  ///
+  /// It DOES exclude [UsersStatus.failure]. A page that just failed must be
+  /// retried explicitly, by tapping the inline Retry -- never automatically.
+  /// Without this the scroll listener keeps firing at the bottom of the list,
+  /// each attempt fails, and the app hammers the same cursor in a loop. That
+  /// is not merely wasteful: against a 60/hour budget it spends the entire
+  /// remaining quota in seconds, and against a 429 it is exactly the
+  /// behaviour rate limiting exists to stop.
   bool get canLoadMore =>
       !hasReachedEnd &&
       nextSince != null &&
+      !isRateLimited &&
+      status != UsersStatus.failure &&
       status != UsersStatus.loadingMore &&
       status != UsersStatus.loading &&
       status != UsersStatus.refreshing;
+
+  /// True while GitHub's quota is known to be spent.
+  ///
+  /// Once [rateLimitResetAt] is in the future, every request is guaranteed to
+  /// come back 403/429. Issuing one anyway cannot succeed, so the app stops
+  /// asking until the window reopens -- and, because GitHub counts rejected
+  /// requests too, asking anyway would push the reset time further out.
+  bool get isRateLimited {
+    final DateTime? resetAt = rateLimitResetAt;
+    return resetAt != null && resetAt.isAfter(DateTime.now());
+  }
 
   /// True when a search query is narrowing the list.
   bool get isFiltering => searchQuery.trim().isNotEmpty;

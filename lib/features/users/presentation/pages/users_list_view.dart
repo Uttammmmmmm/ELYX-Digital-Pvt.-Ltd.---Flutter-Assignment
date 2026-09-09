@@ -228,28 +228,41 @@ class _UsersListViewState extends State<UsersListView> {
   }
 
   Widget _buildList(BuildContext context, UsersState state) {
-    return ListView.builder(
+    // CustomScrollView, not ListView.builder with itemExtent.
+    //
+    // The rows want a FIXED extent -- it lets the viewport compute scroll
+    // offsets without measuring children. The footer does NOT: it is a
+    // spinner, or an end-of-list line, or a message plus a Retry button, and
+    // those are different heights. `itemExtent` on a ListView applies to
+    // EVERY child, footer included, so the error footer was being squeezed
+    // into one row height and overflowing by ~32px -- clipping the Retry
+    // button. Two slivers keep the fixed extent where it helps and leave the
+    // footer free to size itself. This also matches the grid path.
+    return CustomScrollView(
       // PageStorageKey, not a plain Key: this is what persists the scroll
       // offset across the list <-> grid swap on rotation.
       key: const PageStorageKey<String>('users_list'),
       controller: _scrollController,
-      // Uniform extent, so scroll offsets stay meaningful and the list does
-      // not measure children.
-      itemExtent: UserTileMetrics.heightFor(context),
       physics: const AlwaysScrollableScrollPhysics(),
-      itemCount: state.visibleUsers.length + 1,
-      itemBuilder: (BuildContext context, int index) {
-        if (index == state.visibleUsers.length) return _footer(state);
-
-        // Renders visibleUsers, never allUsers: the search filter is the
-        // view, the pagination sequence is the model.
-        final UserSummary user = state.visibleUsers[index];
-        return UserListTile(
-          key: Key('user_tile_${user.id}'),
-          user: user,
-          onTap: () => _openDetail(user),
-        );
-      },
+      slivers: <Widget>[
+        SliverFixedExtentList(
+          itemExtent: UserTileMetrics.heightFor(context),
+          delegate: SliverChildBuilderDelegate(
+            (BuildContext context, int index) {
+              // Renders visibleUsers, never allUsers: the search filter is
+              // the view, the pagination sequence is the model.
+              final UserSummary user = state.visibleUsers[index];
+              return UserListTile(
+                key: Key('user_tile_${user.id}'),
+                user: user,
+                onTap: () => _openDetail(user),
+              );
+            },
+            childCount: state.visibleUsers.length,
+          ),
+        ),
+        SliverToBoxAdapter(child: _footer(state)),
+      ],
     );
   }
 

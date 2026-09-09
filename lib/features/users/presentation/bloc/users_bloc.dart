@@ -104,6 +104,12 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
     UsersFailedPageRetried event,
     Emitter<UsersState> emit,
   ) async {
+    // Even an explicit retry is refused while the quota is spent: it cannot
+    // succeed, and a rejected request still counts against the limit. The UI
+    // disables its retry button for the same reason, so this is the guard for
+    // anything that dispatches the event another way.
+    if (state.isRateLimited) return;
+
     // Retry resumes from the CURRENT cursor, which the failure deliberately
     // left intact. A cold failure (nothing loaded) retries the first page.
     final bool isFirstPage = state.allUsers.isEmpty;
