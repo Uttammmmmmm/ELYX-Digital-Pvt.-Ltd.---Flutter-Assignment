@@ -1,113 +1,102 @@
-/// The bottom-of-list affordance.
+/// The bottom-of-list slot.
 library;
 
 import 'package:flutter/material.dart';
 
-import '../bloc/users_state.dart';
+/// What the end of the list is currently doing.
+enum PaginationFooterMode {
+  /// A page is in flight.
+  loading,
 
-/// Renders whatever the end of the list currently needs.
+  /// The last page failed. The list above stays intact.
+  error,
+
+  /// Everything has been loaded.
+  end,
+
+  /// Nothing to show.
+  idle,
+}
+
+/// Renders the three end-of-list affordances.
 ///
-/// Four mutually exclusive cases, in priority order:
-///  1. loading more -> spinner
-///  2. inline failure -> message + Retry, WITHOUT hiding the loaded users
-///  3. searching a short list -> invite loading more, so "no results" is not
-///     mistaken for "no such user exists" (constraint e)
-///  4. end of list -> a terminal marker, so the user knows to stop scrolling
+/// The error mode is the important one: it keeps the loaded list on screen
+/// and puts the retry INLINE, so a failure on page 5 costs the user nothing
+/// they had already scrolled past. A full-screen error here would throw away
+/// 40 rows to report one failed request.
 class PaginationFooter extends StatelessWidget {
   const PaginationFooter({
-    required this.state,
-    required this.onRetry,
-    required this.onLoadMore,
+    required this.mode,
+    this.errorMessage,
+    this.onRetry,
     super.key,
   });
 
-  /// Current list state.
-  final UsersState state;
+  /// Which affordance to render.
+  final PaginationFooterMode mode;
+
+  /// Shown in [PaginationFooterMode.error].
+  final String? errorMessage;
 
   /// Retry the failed page.
-  final VoidCallback onRetry;
-
-  /// Request the next page explicitly.
-  final VoidCallback onLoadMore;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
 
-    if (state.status == UsersStatus.loadingMore) {
-      return const Padding(
-        key: Key('pagination_loading'),
-        padding: EdgeInsets.symmetric(vertical: 24),
-        child: Center(
-          child: SizedBox(
-            width: 24,
-            height: 24,
-            child: CircularProgressIndicator(strokeWidth: 2),
+    switch (mode) {
+      case PaginationFooterMode.loading:
+        return const Padding(
+          key: Key('pagination_loading'),
+          padding: EdgeInsets.symmetric(vertical: 24),
+          child: Center(
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
           ),
-        ),
-      );
-    }
+        );
 
-    if (state.hasInlineFailure) {
-      return Padding(
-        key: const Key('pagination_error'),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        child: Column(
-          children: <Widget>[
-            Text(
-              state.failure?.message ?? 'Could not load more users.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.error),
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Retry'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (state.shouldOfferMoreForSearch) {
-      return Padding(
-        key: const Key('pagination_search_more'),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        child: Column(
-          children: <Widget>[
-            Text(
-              'Searching ${state.allUsers.length} loaded users. GitHub has no '
-              'name filter, so load more to widen the search.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton(
-              onPressed: onLoadMore,
-              child: const Text('Load more users'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (state.hasReachedEnd && state.allUsers.isNotEmpty) {
-      return Padding(
-        key: const Key('pagination_end'),
-        padding: const EdgeInsets.symmetric(vertical: 24),
-        child: Center(
-          child: Text(
-            'No more users',
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.outline),
+      case PaginationFooterMode.error:
+        return Padding(
+          key: const Key('pagination_error'),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          child: Column(
+            children: <Widget>[
+              Text(
+                errorMessage ?? "Couldn't load more",
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.error),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                key: const Key('pagination_retry_button'),
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Retry'),
+              ),
+            ],
           ),
-        ),
-      );
-    }
+        );
 
-    return const SizedBox(height: 8);
+      case PaginationFooterMode.end:
+        return Padding(
+          key: const Key('pagination_end'),
+          padding: const EdgeInsets.symmetric(vertical: 24),
+          child: Center(
+            child: Text(
+              "You've reached the end",
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.outline),
+            ),
+          ),
+        );
+
+      case PaginationFooterMode.idle:
+        return const SizedBox(key: Key('pagination_idle'), height: 8);
+    }
   }
 }

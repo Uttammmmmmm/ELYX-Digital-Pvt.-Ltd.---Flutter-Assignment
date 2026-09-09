@@ -34,3 +34,16 @@ String formatAge(Duration d) {
   final int days = d.inDays;
   return '$days ${days == 1 ? 'day' : 'days'} ago';
 }
+
+/// Formats a wall-clock time as `4:35 PM`.
+///
+/// Hand-rolled for the same reason as the rest of this file: no `intl` in the
+/// dependency list. A localised build would replace this with
+/// `DateFormat.jm()`, which also respects the device's 24-hour preference --
+/// this does not, and that is the known limitation.
+String formatClockTime(DateTime time) {
+  final int hour24 = time.hour;
+  final int hour12 = hour24 % 12 == 0 ? 12 : hour24 % 12;
+  final String minute = time.minute.toString().padLeft(2, '0');
+  return '$hour12:$minute ${hour24 < 12 ? 'AM' : 'PM'}';
+}

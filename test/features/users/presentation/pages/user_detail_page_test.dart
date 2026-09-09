@@ -163,7 +163,7 @@ void main() {
     stubFailure(const NotFoundFailure());
     await pumpDetail(tester, login: 'ghost');
 
-    expect(find.byKey(const Key('error_message')), findsOneWidget);
+    expect(find.byKey(const Key('error_view')), findsOneWidget);
     expect(find.textContaining('could not be found'), findsOneWidget);
     expect(find.text('Try again'), findsOneWidget);
   });
@@ -175,7 +175,8 @@ void main() {
     );
     await pumpDetail(tester);
 
-    expect(find.byKey(const Key('rate_limit_countdown')), findsOneWidget);
-    expect(find.textContaining('Access returns in'), findsOneWidget);
+    expect(find.byKey(const Key('rate_limit_view')), findsOneWidget);
+    expect(find.byKey(const Key('rate_limit_reset_text')), findsOneWidget);
+    expect(find.textContaining('Limit resets at'), findsOneWidget);
   });
 }

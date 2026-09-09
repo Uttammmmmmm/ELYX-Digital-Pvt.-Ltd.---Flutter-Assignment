@@ -3,44 +3,42 @@ library;
 
 import 'package:flutter/material.dart';
 
-import '../error/failures.dart';
-import 'rate_limit_view.dart';
+import '../../../../core/error/failures.dart';
 
 /// Full-screen error with a Retry button.
 ///
-/// Dispatches to [RateLimitView] for a [RateLimitFailure] so the rate-limit
-/// case gets its countdown and disabled Retry rather than a button the user
-/// can mash to no effect. Callers render this one widget and get the right
-/// treatment automatically.
-class AppErrorView extends StatelessWidget {
-  const AppErrorView({required this.failure, required this.onRetry, super.key});
+/// Renders the [Failure]'s own message, which is already user-facing copy
+/// written in the failures file -- widgets do not compose error text, so the
+/// wording lives in one place and is testable without pumping a widget.
+///
+/// A [RateLimitFailure] must NOT be routed here; it gets `RateLimitView`,
+/// which knows to disable retry until the quota returns.
+class ErrorView extends StatelessWidget {
+  const ErrorView({required this.failure, required this.onRetry, super.key});
 
-  /// What went wrong. Its `message` is already user-facing copy.
+  /// What went wrong.
   final Failure failure;
 
-  /// Invoked when the user taps Retry.
+  /// Retry the failed request.
   final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
-    final Failure f = failure;
-    if (f is RateLimitFailure) {
-      return RateLimitView(failure: f, onRetry: onRetry);
-    }
-
     final ThemeData theme = Theme.of(context);
 
     return Center(
+      key: const Key('error_view'),
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Icon(
-              switch (f) {
+              switch (failure) {
                 NetworkFailure() => Icons.wifi_off,
                 NotFoundFailure() => Icons.person_off,
                 CacheFailure() => Icons.inbox,
+                TimeoutFailure() => Icons.hourglass_disabled,
                 _ => Icons.error_outline,
               },
               size: 48,
@@ -48,13 +46,14 @@ class AppErrorView extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              f.message,
+              failure.message,
               key: const Key('error_message'),
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyLarge,
             ),
             const SizedBox(height: 24),
             FilledButton.icon(
+              key: const Key('error_retry_button'),
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
               label: const Text('Try again'),

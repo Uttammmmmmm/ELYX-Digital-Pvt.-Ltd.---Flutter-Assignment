@@ -6,14 +6,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/error/failures.dart';
-import '../../../../core/widgets/app_error_view.dart';
 import '../../../../core/widgets/app_loader.dart';
-import '../../../../core/widgets/network_avatar.dart';
 import '../../domain/entities/user_detail.dart';
 import '../bloc/user_detail_bloc.dart';
 import '../bloc/user_detail_event.dart';
 import '../bloc/user_detail_state.dart';
 import '../formatters/user_display.dart';
+import '../widgets/error_view.dart';
+import '../widgets/rate_limit_view.dart';
+import '../widgets/user_avatar.dart';
 import '../widgets/detail_field_tile.dart';
 import '../widgets/detail_stat_row.dart';
 
@@ -49,12 +50,22 @@ class UserDetailView extends StatelessWidget {
           // Sealed state -> exhaustive switch; a new state cannot be forgotten.
           return switch (state) {
             UserDetailInitial() || UserDetailLoading() => const AppLoader(),
-            UserDetailError(:final Failure failure) => AppErrorView(
-                failure: failure,
-                onRetry: () => context
-                    .read<UserDetailBloc>()
-                    .add(UserDetailRequested(login)),
-              ),
+            UserDetailError(:final Failure failure) => switch (failure) {
+                // Rate limiting gets the countdown view with its disabled
+                // retry; everything else gets the generic error.
+                RateLimitFailure(:final DateTime resetAt) => RateLimitView(
+                    resetAt: resetAt,
+                    onRetry: () => context
+                        .read<UserDetailBloc>()
+                        .add(UserDetailRequested(login)),
+                  ),
+                _ => ErrorView(
+                    failure: failure,
+                    onRetry: () => context
+                        .read<UserDetailBloc>()
+                        .add(UserDetailRequested(login)),
+                  ),
+              },
             UserDetailLoaded(:final UserDetail detail) => _Profile(detail),
           };
         },
@@ -80,9 +91,9 @@ class _Profile extends StatelessWidget {
       children: <Widget>[
         const SizedBox(height: 24),
         Center(
-          child: NetworkAvatar(
+          child: UserAvatar(
             url: detail.avatarUrl,
-            fallbackInitial: detail.login,
+            login: detail.login,
             radius: 48,
           ),
         ),
