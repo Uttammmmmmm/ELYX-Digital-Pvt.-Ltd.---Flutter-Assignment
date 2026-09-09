@@ -1,3 +1,4 @@
+/// Generic failure state with a retry affordance.
 library;
 
 import 'package:flutter/material.dart';
@@ -9,11 +10,21 @@ import 'adaptive_centered_view.dart';
 
 import '../../../../core/error/failures.dart';
 
+/// Full-screen error with a Retry button.
+///
+/// Renders the [Failure]'s own message, which is already user-facing copy
+/// written in the failures file -- widgets do not compose error text, so the
+/// wording lives in one place and is testable without pumping a widget.
+///
+/// A [RateLimitFailure] must NOT be routed here; it gets `RateLimitView`,
+/// which knows to disable retry until the quota returns.
 class ErrorView extends StatelessWidget {
   const ErrorView({required this.failure, required this.onRetry, super.key});
 
+  /// What went wrong.
   final Failure failure;
 
+  /// Retry the failed request.
   final VoidCallback onRetry;
 
   @override

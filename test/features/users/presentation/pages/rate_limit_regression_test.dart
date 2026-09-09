@@ -1,6 +1,17 @@
 @Timeout(Duration(seconds: 25))
 library;
 
+// REGRESSION tests for two bugs found running against the live GitHub API.
+//
+//  1. A 429 mid-pagination put the bloc in `failure` while `canLoadMore` was
+//     still true, so the scroll listener refired the SAME cursor in a loop --
+//     hammering an endpoint that had already rejected us, and burning the
+//     remaining quota. (Rejected requests still count against the limit.)
+//  2. The list used `ListView.builder(itemExtent:)`, which applies to EVERY
+//     child including the footer slot. The error footer (message + Retry) is
+//     taller than a row, so it overflowed by ~32px and clipped the button --
+//     hiding the only control that could recover.
+
 import 'dart:async';
 
 import 'package:dartz/dartz.dart';
@@ -29,6 +40,7 @@ UserSummary _u(int id) => UserSummary(
   accountType: 'User',
 );
 
+/// Enough rows to overflow a phone viewport, so the list really scrolls.
 final List<UserSummary> _firstPage = List<UserSummary>.generate(
   20,
   (int i) => _u(i + 1),
@@ -41,6 +53,7 @@ void main() {
   setUp(() {
     installFakeAvatars();
     repository = MockUserRepository();
+    // Cold-start seed: no prior cache unless a test says otherwise.
     when(
       repository.getCachedUsers(),
     ).thenAnswer((_) async => const <UserSummary>[]);
@@ -76,6 +89,7 @@ void main() {
     return bloc;
   }
 
+  /// First page succeeds; every later cursor is rate limited, as GitHub did.
   void stubRateLimitedAfterFirstPage() {
     when(
       repository.getUsers(
@@ -110,6 +124,8 @@ void main() {
       stubRateLimitedAfterFirstPage();
       await pump(tester);
 
+      // Drive the bottom of the list repeatedly, exactly as a user bouncing
+      // at the end would.
       for (int i = 0; i < 6; i++) {
         await tester.drag(find.byType(CustomScrollView), const Offset(0, -400));
         await tester.pump(const Duration(milliseconds: 30));
@@ -131,6 +147,7 @@ void main() {
       stubRateLimitedAfterFirstPage();
       final UsersBloc bloc = await pump(tester);
 
+      // Far enough to cross the load-more threshold near the bottom.
       await tester.drag(find.byType(CustomScrollView), const Offset(0, -2000));
       await tester.pumpAndSettle();
 
@@ -195,6 +212,8 @@ void main() {
 
       final Finder retry = find.byKey(const Key('pagination_retry_button'));
       expect(retry, findsOneWidget);
+      // A clipped button would report a height smaller than the Material
+      // minimum tap target.
       expect(tester.getSize(retry).height, greaterThanOrEqualTo(36));
       expect(tester.takeException(), isNull);
     });

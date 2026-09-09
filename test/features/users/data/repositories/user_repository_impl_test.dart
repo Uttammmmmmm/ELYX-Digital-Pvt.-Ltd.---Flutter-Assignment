@@ -13,6 +13,7 @@ import 'package:mockito/mockito.dart';
 import '../../../../helpers/entity_fixtures.dart';
 import '../../../../helpers/mocks.mocks.dart';
 
+/// One test per branch of the documented decision order.
 void main() {
   late MockUsersApi api;
   late MockUserLocalDataSource local;
@@ -71,6 +72,8 @@ void main() {
       ]);
     });
 
+    // REGRESSION (B2). Commit 6eeac93 removed this call AND its test in the
+    // same commit, so the suite stayed green while the behaviour vanished.
     test('INVALIDATES cached batches before fetching', () async {
       when(local.getCachedUsersPage(any)).thenReturn(null);
       when(network.isConnected).thenAnswer((_) async => true);
@@ -91,9 +94,14 @@ void main() {
       verifyNever(local.clearUsersPages());
     });
 
+    // The point of the invalidation: a LATER page must not be served from a
+    // pre-refresh entry. Without `clearUsersPages()` this fails -- the cached
+    // page 2 is inside its TTL, so it is returned and the remote is never
+    // called.
     test(
       'a later page after a refresh goes REMOTE, not to a pre-refresh entry',
       () async {
+        // Simulate the box being emptied by the clear.
         bool cleared = false;
         when(local.clearUsersPages()).thenAnswer((_) async => cleared = true);
         when(
@@ -125,6 +133,9 @@ void main() {
         ),
       ).thenThrow(const ServerException('boom', statusCode: 500));
 
+      // The clear already happened, so there is nothing to fall back to and
+      // the failure is surfaced -- which is correct: a refresh that fails
+      // with an emptied cache has nothing honest to show.
       expect((await repository.getUsers(forceRefresh: true)).isLeft(), isTrue);
     });
   });

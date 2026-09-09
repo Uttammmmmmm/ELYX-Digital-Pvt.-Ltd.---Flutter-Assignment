@@ -11,12 +11,24 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../../../helpers/widget_harness.dart';
 
+/// REGRESSION: RateLimitView overflowed by 4px on a real device.
+///
+/// The state widgets are ~300dp of Column. Any container shorter than that --
+/// a landscape phone, the detail screen's remaining space under the header,
+/// or a raised system font size -- produced a RenderFlex overflow, and the
+/// striped banner covered the Retry button. So the error was not merely ugly:
+/// it hid the only control that could recover from it.
+///
+/// These pump every full-screen state at heights that used to break, and
+/// assert no exception was recorded. `tester.takeException()` is what catches
+/// a RenderFlex overflow.
 void main() {
+  /// Heights that reproduced the bug, plus the pathological case.
   const List<Size> viewports = <Size>[
-    Size(400, 300),
-    Size(568, 320),
-    Size(320, 568),
-    Size(400, 200),
+    Size(400, 300), // the detail screen's leftover space
+    Size(568, 320), // iPhone SE landscape
+    Size(320, 568), // iPhone SE portrait
+    Size(400, 200), // pathological
   ];
 
   Widget rateLimit() => RateLimitView(
@@ -72,6 +84,8 @@ void main() {
     await tester.pumpWidget(wrapForTest(Scaffold(body: rateLimit())));
     await tester.pump();
 
+    // Scroll the state view to bring the button into view, then confirm it
+    // is really there -- an overflow would have clipped it entirely.
     await tester.dragUntilVisible(
       find.byKey(const Key('rate_limit_retry_button')),
       find.byType(SingleChildScrollView),

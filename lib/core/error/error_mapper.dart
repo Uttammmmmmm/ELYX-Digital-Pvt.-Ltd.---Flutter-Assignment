@@ -1,3 +1,9 @@
+/// The single translation point from Dio's transport errors to [AppException].
+///
+/// BOUNDARY NOTE: this is one of only two places outside `core/network` that
+/// may import `package:dio` (see the architecture test). It sits in `core/error`
+/// because it *produces* the error vocabulary; if you want a stricter rule,
+/// move this file to `core/network/` and the allowlist shrinks to one entry.
 library;
 
 import 'package:dio/dio.dart';
@@ -5,7 +11,13 @@ import 'package:dio/dio.dart';
 import '../network/header_reader.dart';
 import 'exceptions.dart';
 
+/// Converts a [DioException] into the appropriate [AppException].
+///
+/// Ordering matters: an exception already classified by an interceptor (the
+/// rate-limit interceptor rejects with `error: RateLimitException`) is passed
+/// straight through, so the richer diagnosis is never downgraded here.
 AppException mapDioException(DioException error) {
+  // Already classified upstream -- do not re-derive.
   final Object? inner = error.error;
   if (inner is AppException) return inner;
 
@@ -26,6 +38,9 @@ AppException mapDioException(DioException error) {
       return const ServerException('The server certificate was rejected');
 
     case DioExceptionType.cancel:
+      // A cancellation is our own doing (widget disposed, query superseded).
+      // It is surfaced as an exception so callers can drop it silently rather
+      // than render it.
       return const ServerException('Request cancelled');
 
     case DioExceptionType.badResponse:
@@ -39,11 +54,15 @@ AppException mapDioException(DioException error) {
   }
 }
 
+/// Splits a non-2xx response by status code.
 AppException _mapBadResponse(DioException error) {
   final Response<dynamic>? response = error.response;
   final int? status = response?.statusCode;
   final Headers? headers = response?.headers;
 
+  // 403 and 429 are both used for rate limiting. The status alone is NOT
+  // enough: a plain 403 also means "forbidden". `x-ratelimit-remaining: 0`
+  // is the discriminator. Constraint (d).
   if (status == 403 || status == 429) {
     if (isRateLimitExhausted(headers)) {
       return RateLimitException(

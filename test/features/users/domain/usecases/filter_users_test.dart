@@ -45,6 +45,8 @@ void main() {
     });
 
     test('internal whitespace runs collapse to a single space', () {
+      // Both are equivalent, and both correctly match nothing -- the point is
+      // that they behave IDENTICALLY.
       expect(run('mo   jo'), run('mo jo'));
     });
 
@@ -66,6 +68,7 @@ void main() {
     });
 
     test('dotted/dotless I follows Unicode default mapping, not a locale', () {
+      // A Turkish-locale lowercase would map I -> dotless i and break this.
       final List<UserSummary> input = <UserSummary>[_u(9, 'IstanbulDev')];
       expect(logins(run('istanbul', input: input)), <String>['IstanbulDev']);
     });
@@ -103,6 +106,8 @@ void main() {
     });
   });
 
+  // Every one of these would either THROW a FormatException or silently
+  // change meaning if the query were compiled into a RegExp.
   group('regex metacharacters are literals', () {
     test('. is not a wildcard', () {
       expect(run('m.jombo'), isEmpty);

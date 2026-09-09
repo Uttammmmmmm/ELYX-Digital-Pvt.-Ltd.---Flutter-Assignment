@@ -11,6 +11,8 @@ import 'package:flutter_test/flutter_test.dart';
 import '../../../../../fixtures/fixture_reader.dart';
 import '../../../../../helpers/fake_http_adapter.dart';
 
+/// The alternate source, reachable via --dart-define=API_SOURCE=github.
+/// End-to-end over the real Dio stack; only the socket is faked.
 void main() {
   late RateLimitTracker tracker;
 

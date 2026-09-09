@@ -1,16 +1,36 @@
+/// App-wide theming.
 library;
 
 import 'package:flutter/material.dart';
 
 import 'app_spacing.dart';
 
+/// Light and dark themes, both generated from one seed colour.
+///
+/// A seeded [ColorScheme] rather than hand-picked colours: Material 3 derives
+/// every `on*` pair to meet contrast requirements, in both brightnesses, which
+/// hand-mixing does not. That is what makes the empty, error and rate-limit
+/// states legible in dark mode without a second set of colours.
+///
+/// THE TEXT SCALE IS DEFINED ONCE, HERE. Widgets reference semantic roles
+/// (`titleMedium`, `bodySmall`) and never construct a `TextStyle` with a
+/// literal `fontSize`. That is what lets typography change globally, and what
+/// makes text scale correctly for users who raise their system font size.
 abstract final class AppTheme {
+  /// GitHub's signature blue-black.
   static const Color _seed = Color(0xFF24292F);
 
+  /// Light theme.
   static ThemeData get light => _build(Brightness.light);
 
+  /// Dark theme.
   static ThemeData get dark => _build(Brightness.dark);
 
+  /// The full type scale, applied to both brightnesses.
+  ///
+  /// Sizes and weights live here so the semantic roles carry real meaning:
+  /// `titleSmall` is a row title everywhere in the app, not whatever the
+  /// nearest widget happened to inline.
   static TextTheme _textTheme(ColorScheme scheme) => TextTheme(
     displayLarge: TextStyle(
       fontSize: 57,
@@ -174,7 +194,9 @@ abstract final class AppTheme {
           color: scheme.onInverseSurface,
         ),
       ),
+      // Every interactive control is at least 48dp on both axes.
       materialTapTargetSize: MaterialTapTargetSize.padded,
+      // A quieter, shared page transition on every platform.
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: <TargetPlatform, PageTransitionsBuilder>{
           TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),

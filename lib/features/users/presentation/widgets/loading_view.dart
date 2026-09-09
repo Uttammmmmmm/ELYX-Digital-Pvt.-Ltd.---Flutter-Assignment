@@ -1,3 +1,4 @@
+/// First-load skeleton.
 library;
 
 import 'package:flutter/material.dart';
@@ -5,9 +6,15 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_spacing.dart';
 import 'user_tile_metrics.dart';
 
+/// Placeholder rows shown during the very first page load.
+///
+/// A skeleton rather than a bare centred spinner: it communicates the SHAPE
+/// of what is coming, occupies the space the real rows will, and so avoids
+/// the layout jump when they arrive.
 class LoadingView extends StatelessWidget {
   const LoadingView({this.itemCount = 8, super.key});
 
+  /// How many placeholder rows to draw.
   final int itemCount;
 
   @override
@@ -18,6 +25,7 @@ class LoadingView extends StatelessWidget {
       key: const Key('loading_view'),
       itemCount: itemCount,
       itemExtent: UserTileMetrics.heightFor(context),
+      // The skeleton is not interactive; letting it scroll would be a lie.
       physics: const NeverScrollableScrollPhysics(),
       itemBuilder: (BuildContext context, int index) => Padding(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),

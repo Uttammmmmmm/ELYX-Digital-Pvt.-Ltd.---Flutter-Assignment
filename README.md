@@ -34,29 +34,34 @@ flutter run
 
 Requires Flutter **3.41+** / Dart **3.11+**.
 
-### The API key
-
-The default source, `reqres.in`, has required an API key since 2025. Requests
-without it return `401 {"error":"missing_api_key"}`. The free public key is
-compiled in as the default, so **`flutter run` works with no configuration**.
-To supply a different one:
-
-```bash
-flutter run --dart-define=REQRES_API_KEY=your-key
-```
-
 ### Switching data source
 
 ```bash
-flutter run                                   # reqres.in  (default)
-flutter run --dart-define=API_SOURCE=github   # api.github.com
+flutter run                                   # api.github.com  (default)
+flutter run --dart-define=API_SOURCE=reqres   # reqres.in
 ```
+
+`api.github.com` is the default because it serves **live** data. `reqres.in` is
+a mock API that returns the same 12 invented users (George Bluth, Janet
+Weaver, …) on every request — useful as a fixture, but on a device it is
+indistinguishable from hardcoded placeholder data, so it is opt-in only.
 
 GitHub is unauthenticated by default (60 requests/hour per IP). To raise that
 to 5,000:
 
 ```bash
-flutter run --dart-define=API_SOURCE=github --dart-define=GITHUB_TOKEN=ghp_xxx
+flutter run --dart-define=GITHUB_TOKEN=ghp_xxx
+```
+
+### The reqres API key
+
+`reqres.in` has required an API key since 2025; without it requests return
+`401 {"error":"missing_api_key"}`. The free public key is compiled in as the
+default, so `--dart-define=API_SOURCE=reqres` needs no further configuration.
+To supply a different one:
+
+```bash
+flutter run --dart-define=API_SOURCE=reqres --dart-define=REQRES_API_KEY=your-key
 ```
 
 > `--dart-define` values are compiled into the binary and are recoverable from
@@ -78,8 +83,10 @@ interchangeable: they disagree about pagination, about what a list response
 contains, and about authentication.
 
 Rather than guess which was intended, **both are implemented behind one
-interface** and selected at build time, with **reqres as the default** because
-that is what the prose specifies:
+interface** and selected at build time, with **GitHub as the default** because
+it is the only one of the two that serves live data — reqres returns a fixed
+12-user fixture, which on a real device is indistinguishable from static
+placeholder content:
 
 ```dart
 abstract interface class UsersApi {
@@ -90,7 +97,7 @@ abstract interface class UsersApi {
 }
 ```
 
-| | reqres.in (default) | api.github.com |
+| | reqres.in | api.github.com (default) |
 |---|---|---|
 | Pagination | `?page=N&per_page=10`, `total_pages` in the body | `?since={id}` cursor, next page in the `Link` header |
 | List contains | `first_name`, `last_name`, `email`, `avatar` | `login`, `avatar_url` — **no name, no email** |

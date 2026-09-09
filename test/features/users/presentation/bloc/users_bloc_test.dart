@@ -31,6 +31,8 @@ final List<UserSummary> _page2 = <UserSummary>[
   _u(4, 'wycats'),
 ];
 
+/// Zero real network: the repository is mocked and the use cases are real, so
+/// the bloc -> use case -> repository wiring is exercised rather than stubbed.
 void main() {
   late MockUserRepository repository;
 
@@ -70,11 +72,13 @@ void main() {
 
   setUp(() {
     repository = MockUserRepository();
+    // Cold-start seed: no prior cache unless a test says otherwise.
     when(
       repository.getCachedUsers(),
     ).thenAnswer((_) async => const <UserSummary>[]);
   });
 
+  // 1 --------------------------------------------------------------------
   blocTest<UsersBloc, UsersState>(
     'UsersFetched emits loading then success with the first page',
     setUp: () => stub(_page1, nextCursor: 2, forCursor: null),
@@ -95,6 +99,7 @@ void main() {
     ],
   );
 
+  // 1b -------------------------------------------------------------------
   blocTest<UsersBloc, UsersState>(
     'UsersFetched is idempotent -- a second one does not refetch',
     setUp: () => stub(_page1, nextCursor: 2, forCursor: null),
@@ -113,6 +118,7 @@ void main() {
     ).called(1),
   );
 
+  // 2 --------------------------------------------------------------------
   blocTest<UsersBloc, UsersState>(
     'UsersNextPageRequested appends the next page and advances the cursor',
     setUp: () {
@@ -144,6 +150,7 @@ void main() {
     ],
   );
 
+  // 3 --------------------------------------------------------------------
   blocTest<UsersBloc, UsersState>(
     'droppable(): duplicate scroll events issue exactly ONE request',
     setUp: () {
@@ -179,6 +186,7 @@ void main() {
           forceRefresh: anyNamed('forceRefresh'),
         ),
       ).called(1);
+      // And the page was appended exactly once -- no duplicates.
       expect(bloc.state.allUsers.map((UserSummary u) => u.id), <int>[
         1,
         2,
@@ -188,11 +196,13 @@ void main() {
     },
   );
 
+  // 4 --------------------------------------------------------------------
   blocTest<UsersBloc, UsersState>(
     'no request once hasReachedEnd, and none before a cursor exists',
-    setUp: () => stub(_page1, forCursor: null),
+    setUp: () => stub(_page1, forCursor: null), // no nextSince -> end
     build: build,
     act: (UsersBloc bloc) async {
+      // Before the first page: nextSince is null, so this must be ignored.
       bloc.add(const UsersNextPageRequested());
       bloc.add(const UsersFetched());
       await Future<void>.delayed(Duration.zero);
@@ -213,6 +223,7 @@ void main() {
     },
   );
 
+  // 5 --------------------------------------------------------------------
   blocTest<UsersBloc, UsersState>(
     'error mid-pagination KEEPS allUsers and nextSince so retry resumes',
     setUp: () {
@@ -225,11 +236,14 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       bloc.add(const UsersNextPageRequested());
       await Future<void>.delayed(Duration.zero);
+      // Now the same cursor succeeds.
       stub(_page2, nextCursor: 4, forCursor: 2);
       bloc.add(const UsersFailedPageRetried());
     },
+    // Emitted: loading, success, loadingMore, failure, loadingMore, success.
     skip: 3,
     expect: () => <Matcher>[
+      // The failure preserved progress...
       isA<UsersState>()
           .having((UsersState s) => s.status, 'status', UsersStatus.failure)
           .having((UsersState s) => s.allUsers, 'users survive', _page1)
@@ -239,6 +253,7 @@ void main() {
             'inline, not blocking',
             true,
           ),
+      // ...so the retry resumes from cursor 2 rather than restarting.
       isA<UsersState>().having(
         (UsersState s) => s.status,
         'status',
@@ -254,6 +269,7 @@ void main() {
     ],
   );
 
+  // 6 --------------------------------------------------------------------
   blocTest<UsersBloc, UsersState>(
     'a cold failure is blocking and exposes rateLimitResetAt for the countdown',
     setUp: () => stubFailure(
@@ -275,6 +291,7 @@ void main() {
     ],
   );
 
+  // 7 --------------------------------------------------------------------
   blocTest<UsersBloc, UsersState>(
     'search filters visibleUsers without a network call or cursor reset',
     setUp: () => stub(_page1, nextCursor: 2, forCursor: null),
@@ -312,6 +329,7 @@ void main() {
     ).called(1),
   );
 
+  // 7b -------------------------------------------------------------------
   blocTest<UsersBloc, UsersState>(
     'debounce collapses a burst of keystrokes into a single filter',
     setUp: () => stub(_page1, nextCursor: 2, forCursor: null),
@@ -327,12 +345,14 @@ void main() {
     wait: const Duration(milliseconds: 250),
     skip: 2,
     expect: () => <Matcher>[
+      // One state, for the LAST query only -- not three.
       isA<UsersState>()
           .having((UsersState s) => s.searchQuery, 'query', 'moj')
           .having((UsersState s) => s.visibleUsers.length, 'matches', 1),
     ],
   );
 
+  // 8 --------------------------------------------------------------------
   blocTest<UsersBloc, UsersState>(
     'refresh keeps the old list on screen, then replaces it and dedupes',
     setUp: () {
@@ -352,6 +372,7 @@ void main() {
     },
     skip: 2,
     expect: () => <Matcher>[
+      // Mid-refresh: status changed, list NOT blanked.
       isA<UsersState>()
           .having((UsersState s) => s.status, 'status', UsersStatus.refreshing)
           .having((UsersState s) => s.allUsers, 'old list still shown', _page1),
@@ -373,6 +394,7 @@ void main() {
     ).called(1),
   );
 
+  // Extra: the isClosed guard.
   blocTest<UsersBloc, UsersState>(
     'closing mid-request does not emit on a closed bloc (back navigation)',
     setUp: () =>
@@ -392,7 +414,7 @@ void main() {
     act: (UsersBloc bloc) async {
       bloc.add(const UsersFetched());
       await Future<void>.delayed(const Duration(milliseconds: 10));
-      await bloc.close();
+      await bloc.close(); // user tapped back before the page landed
       await Future<void>.delayed(const Duration(milliseconds: 80));
     },
     errors: () => <Matcher>[],

@@ -1,3 +1,4 @@
+/// Hive representation of [UserSummary].
 library;
 
 import 'package:hive_ce/hive.dart';
@@ -7,6 +8,15 @@ import '../../domain/entities/user_summary.dart';
 
 part 'user_summary_model.g.dart';
 
+/// [UserSummary] plus Hive persistence.
+///
+/// Extends the entity and declares no storage of its own -- the `@HiveField`
+/// getters delegate to inherited fields via `super`, so there is one copy of
+/// every value and `domain/` stays free of any Hive import.
+///
+/// SOURCE-NEUTRAL: this persists the union shape, not either API's JSON. The
+/// API implementations parse their own responses into entities; this only has
+/// to store what came out. That is why there is no `fromJson` here any more.
 @HiveType(typeId: HiveTypeIds.userSummary)
 class UserSummaryModel extends UserSummary {
   const UserSummaryModel({
@@ -21,6 +31,7 @@ class UserSummaryModel extends UserSummary {
     super.accountType,
   });
 
+  /// Narrows an entity for caching.
   factory UserSummaryModel.fromEntity(UserSummary user) => UserSummaryModel(
     id: user.id,
     detailId: user.detailId,

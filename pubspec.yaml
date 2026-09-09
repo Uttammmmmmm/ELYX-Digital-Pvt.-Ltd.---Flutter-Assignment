@@ -38,6 +38,12 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
+  # Drives the real app on a simulator/device. Used to produce the README
+  # screenshots reproducibly -- `flutter drive` walks the app through each
+  # state and writes a PNG per state, so the images cannot drift from the UI.
+  integration_test:
+    sdk: flutter
+
   bloc_test: 10.0.0
   mockito: 5.6.4
   build_runner: 2.15.1

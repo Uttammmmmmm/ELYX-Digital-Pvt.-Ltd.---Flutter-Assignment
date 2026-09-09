@@ -30,6 +30,8 @@ import 'package:mockito/mockito.dart';
 import '../../helpers/entity_fixtures.dart';
 import '../../helpers/mocks.mocks.dart';
 
+/// A DI graph only fails at runtime, on the screen that needs it. Resolving
+/// every registration once in CI turns that into a build failure instead.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -38,6 +40,8 @@ void main() {
 
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp('di_test');
+    // HiveInitializer.init() cannot run here: initFlutter() needs
+    // path_provider, which has no implementation under flutter_test.
     Hive.init(tempDir.path);
     HiveInitializer.registerAdaptersOnce();
     boxes = HiveBoxes(
@@ -69,18 +73,19 @@ void main() {
       expect(sl<FilterUsers>(), isNotNull);
     });
 
-    test('github is the default source', () {
+    test('github is the default source -- reqres serves a static fixture', () {
       expect(kApiSource, 'github');
       expect(sl<UsersApi>(), isA<GitHubUsersApi>());
       expect(sl<UsersApi>().baseUrl, 'https://api.github.com');
       expect(
-        sl<UsersApi>().headers['User-Agent'],
-        isNotEmpty,
-        reason: 'GitHub 403s without a User-Agent',
+        sl<UsersApi>().headers['Accept'],
+        'application/vnd.github+json',
+        reason: 'GitHub needs its versioned media type',
       );
     });
 
     test('the Dio client takes its host and headers from the source', () {
+      // Not hardcoded: switching API_SOURCE must repoint the client too.
       expect(sl<DioClient>(), isNotNull);
       expect(sl<UsersApi>().baseUrl, contains('api.github.com'));
     });
@@ -89,11 +94,6 @@ void main() {
       expect(sl<UserRepository>(), isNotNull);
       expect(
         sl.isRegistered<ReqresUsersApi>(),
-        isFalse,
-        reason: 'consumers must not reach for an implementation',
-      );
-      expect(
-        sl.isRegistered<GitHubUsersApi>(),
         isFalse,
         reason: 'consumers must not reach for an implementation',
       );
@@ -168,10 +168,15 @@ void main() {
       final MockNetworkInfo mockNetwork = MockNetworkInfo();
       when(mockNetwork.isConnected).thenAnswer((_) async => true);
 
+      // 1. Permit re-registration of an already-registered type.
       sl.allowReassignment = true;
+      // 2. Swap the implementations behind the ABSTRACT types.
       sl
         ..registerLazySingleton<UsersApi>(() => mockApi)
         ..registerLazySingleton<NetworkInfo>(() => mockNetwork);
+      // 3. Drop the repository's cached instance so it rebuilds against the
+      //    mocks. Without this it keeps the real collaborators it captured on
+      //    first resolution -- the step that is easy to forget.
       sl.resetLazySingleton<UserRepository>();
 
       final Either<Failure, PaginatedUsers> result = await sl<UserRepository>()

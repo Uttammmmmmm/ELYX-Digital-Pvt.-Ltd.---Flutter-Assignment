@@ -1,3 +1,4 @@
+/// The API returned no users at all.
 library;
 
 import 'package:flutter/material.dart';
@@ -7,9 +8,16 @@ import '../strings/users_strings.dart';
 import '../../../../core/theme/app_spacing.dart';
 import 'adaptive_centered_view.dart';
 
+/// Shown when GitHub returned zero users and no search is active.
+///
+/// Visually and textually distinct from [NoSearchResultsView]: this one means
+/// "there is nothing here", which is a property of the data. That one means
+/// "nothing you loaded matches", which is a property of your query. Same
+/// blank screen, completely different next action.
 class EmptyView extends StatelessWidget {
   const EmptyView({this.onRefresh, super.key});
 
+  /// Optional retry, since an empty result is usually transient.
   final VoidCallback? onRefresh;
 
   @override

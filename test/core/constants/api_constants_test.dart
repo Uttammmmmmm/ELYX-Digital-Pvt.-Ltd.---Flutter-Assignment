@@ -1,6 +1,22 @@
 import 'package:elyx_digital_assignment/core/constants/api_constants.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+/// Verifies the `--dart-define` token wiring.
+///
+/// `String.fromEnvironment` is resolved at COMPILE time, so a single run can
+/// only exercise one branch. These tests therefore assert against
+/// [ApiConstants.hasToken] rather than hardcoding an expectation, which means
+/// the same file is meaningful in both modes:
+///
+///   flutter test                                        -> unauthenticated
+///   flutter test --dart-define=GITHUB_TOKEN=ghp_xxx     -> authenticated
+///
+/// Both are worth running; CI should run the first.
+/// Set alongside the token to assert the define actually reached the compiler.
+///
+/// Without this the "if and only if" test below would pass TRIVIALLY when the
+/// flag is silently dropped -- both sides would simply be false. Passing the
+/// expectation in as a second define makes a broken flag a red test.
 const bool kExpectToken = bool.fromEnvironment('EXPECT_TOKEN');
 
 void main() {
@@ -54,6 +70,7 @@ void main() {
 
     test('a defined token is sent as a Bearer credential', () {
       if (!ApiConstants.hasToken) {
+        // Unauthenticated build: assert the negative instead.
         expect(
           ApiConstants.defaultHeaders,
           isNot(contains(ApiConstants.headerAuthorization)),

@@ -1,3 +1,4 @@
+/// The users list screen.
 library;
 
 import 'dart:async';
@@ -26,21 +27,74 @@ import '../widgets/user_list_tile.dart';
 import '../widgets/user_tile_metrics.dart';
 import '../widgets/user_search_bar.dart';
 
+/// The list itself. Expects a [UsersBloc] above it.
+///
+/// Holds no business logic: it translates gestures into events and state into
+/// widgets. Every decision it appears to make -- when more can be loaded,
+/// whether a failure is inline or blocking -- is a getter on [UsersState].
 class UsersListView extends StatefulWidget {
-  const UsersListView({required this.connectivity, super.key});
+  const UsersListView({
+    required this.connectivity,
+    this.onUserSelected,
+    this.selectedDetailId,
+    this.showAppBar = true,
+    super.key,
+  });
 
+  /// Emits false when the device has no network interface. Injected rather
+  /// than resolved here, so no widget touches the service locator.
   final Stream<bool> connectivity;
+
+  /// Where a tap on a user should go.
+  ///
+  /// Null -- the single-pane default -- pushes the detail ROUTE. A split view
+  /// passes a callback instead, because there the detail is a sibling pane,
+  /// not a new page: pushing would cover the list it is meant to sit beside.
+  final void Function(UserSummary user)? onUserSelected;
+
+  /// `detailId` of the user currently shown in the detail pane, for
+  /// highlighting. Always null in single-pane.
+  final String? selectedDetailId;
+
+  /// Whether this view supplies its own [AppBar]. A split view provides one
+  /// spanning both panes, so the list pane must not add a second.
+  final bool showAppBar;
 
   @override
   State<UsersListView> createState() => _UsersListViewState();
 }
 
 class _UsersListViewState extends State<UsersListView> {
+  /// Held in State, so it survives a rebuild caused by rotation.
+  ///
+  /// ROTATION, AND WHAT SURVIVES IT. Bloc state survives automatically and for
+  /// free: the bloc lives above this widget in the tree, is not rebuilt when
+  /// constraints change, and simply re-emits its current state to the new
+  /// layout -- which is why rotating does NOT refire pagination or reset the
+  /// loaded users. Scroll offset is different. Rotating a phone crosses the
+  /// 600dp breakpoint, so the ListView is replaced by a GridView: a genuinely
+  /// different scroll view, whose offset would start at zero. The
+  /// PageStorageKey on each view buckets its offset by key within the route,
+  /// so returning to a layout restores where the user was.
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
 
+  /// Trigger a page this far from the bottom, so the next rows are usually
+  /// already there by the time the user reaches them.
+  ///
+  /// A THRESHOLD, not equality: `pixels == maxScrollExtent` is almost never
+  /// true. Scroll physics overshoot, bounce past the extent on iOS, and land
+  /// on fractional pixel values, so an equality check silently never fires.
   static const double _loadMoreThreshold = 200;
 
+  /// How many users existed the last time the viewport auto-filled.
+  ///
+  /// The termination guard for [_fillViewport]. Without it, a page that
+  /// returns a cursor but adds no new rows -- every row a duplicate, or a
+  /// backend that keeps handing out cursors -- leaves the viewport unfilled
+  /// forever, so the post-frame callback fires again, and again. That is an
+  /// unbounded request loop against a 60/hour budget. Requiring strictly more
+  /// users than the previous attempt makes progress a precondition.
   int _lastAutoFillCount = -1;
 
   @override
@@ -48,11 +102,21 @@ class _UsersListViewState extends State<UsersListView> {
     super.initState();
     _scrollController.addListener(_onScroll);
 
+    // A first page that does not fill the viewport produces
+    // maxScrollExtent == 0, so the user cannot scroll, so the scroll listener
+    // never fires, so pagination stalls permanently. Common on tall screens
+    // and tablets with a 10-item page. Ask for the next page explicitly once
+    // layout has settled.
     WidgetsBinding.instance.addPostFrameCallback((_) => _fillViewport());
   }
 
   @override
   void dispose() {
+    // Both controllers own resources the widget tree does not reclaim on its
+    // own. A ScrollController left with a listener keeps this State alive
+    // through the closure, and a TextEditingController is a ChangeNotifier
+    // whose listeners keep their subtree reachable -- so skipping either one
+    // leaks the entire screen every time the user navigates back to it.
     _scrollController
       ..removeListener(_onScroll)
       ..dispose();
@@ -60,6 +124,7 @@ class _UsersListViewState extends State<UsersListView> {
     super.dispose();
   }
 
+  /// Requests another page when the list is too short to scroll.
   void _fillViewport() {
     if (!mounted || !_scrollController.hasClients) return;
     if (_scrollController.position.maxScrollExtent > 0) return;
@@ -67,6 +132,7 @@ class _UsersListViewState extends State<UsersListView> {
     final UsersState state = context.read<UsersBloc>().state;
     if (!state.canLoadMore) return;
 
+    // Only auto-fill if the last attempt actually grew the list.
     if (state.allUsers.length <= _lastAutoFillCount) return;
     _lastAutoFillCount = state.allUsers.length;
 
@@ -79,9 +145,18 @@ class _UsersListViewState extends State<UsersListView> {
     if (position.pixels < position.maxScrollExtent - _loadMoreThreshold) {
       return;
     }
+    // Safe to fire repeatedly: the bloc's droppable() transformer collapses a
+    // burst into one request and short-circuits at the end of the list.
     context.read<UsersBloc>().add(const UsersNextPageRequested());
   }
 
+  /// Completes only when the refresh actually settles.
+  ///
+  /// `RefreshIndicator` keeps its spinner up until this future resolves. The
+  /// naive version returns immediately after dispatching, and the spinner
+  /// vanishes a frame later while the request is still in flight. Awaiting
+  /// the bloc's own stream until the status leaves `refreshing` ties the
+  /// indicator to the real work.
   Future<void> _onRefresh() async {
     final UsersBloc bloc = context.read<UsersBloc>()
       ..add(const UsersRefreshed());
@@ -90,8 +165,19 @@ class _UsersListViewState extends State<UsersListView> {
     );
   }
 
-  void _openDetail(UserSummary user) =>
-      Navigator.of(context).pushNamed(AppRoutes.userDetail, arguments: user);
+  /// Opens a user, handing over what the list already knows so the detail
+  /// opens with a real header rather than a spinner.
+  ///
+  /// Delegates to [UsersListView.onUserSelected] when a split view supplied
+  /// one; otherwise pushes the route.
+  void _openDetail(UserSummary user) {
+    final void Function(UserSummary)? select = widget.onUserSelected;
+    if (select != null) {
+      select(user);
+      return;
+    }
+    Navigator.of(context).pushNamed(AppRoutes.userDetail, arguments: user);
+  }
 
   void _retry() =>
       context.read<UsersBloc>().add(const UsersFailedPageRetried());
@@ -107,7 +193,9 @@ class _UsersListViewState extends State<UsersListView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text(UsersStrings.listTitle)),
+      appBar: widget.showAppBar
+          ? AppBar(title: const Text(UsersStrings.listTitle))
+          : null,
       body: Column(
         children: <Widget>[
           UserSearchBar(
@@ -119,6 +207,7 @@ class _UsersListViewState extends State<UsersListView> {
           OfflineBanner(isOnline: widget.connectivity),
           Expanded(
             child: BlocConsumer<UsersBloc, UsersState>(
+              // A newly-arrived page may still not fill the viewport.
               listener: (_, _) => WidgetsBinding.instance.addPostFrameCallback(
                 (_) => _fillViewport(),
               ),
@@ -131,11 +220,14 @@ class _UsersListViewState extends State<UsersListView> {
   }
 
   Widget _body(BuildContext context, UsersState state) {
+    // Cold load: skeleton rows rather than a bare spinner.
     if (state.status == UsersStatus.initial ||
         (state.status == UsersStatus.loading && state.allUsers.isEmpty)) {
       return const LoadingView();
     }
 
+    // A failure with nothing behind it takes the whole screen. Rate limiting
+    // gets its own view, because its retry must stay disabled.
     if (state.hasBlockingFailure) {
       final DateTime? resetAt = state.rateLimitResetAt;
       if (state.rateLimitFailure != null && resetAt != null) {
@@ -144,6 +236,7 @@ class _UsersListViewState extends State<UsersListView> {
       return ErrorView(failure: state.failure!, onRetry: _retry);
     }
 
+    // A search that matched nothing is NOT the same as no users existing.
     if (state.isSearchEmpty) {
       return NoSearchResultsView(
         query: state.searchQuery,
@@ -159,6 +252,8 @@ class _UsersListViewState extends State<UsersListView> {
 
     return RefreshIndicator(
       onRefresh: _onRefresh,
+      // Only the ARRANGEMENT changes with width. Same bloc, same state, same
+      // widgets for every status -- a grid is not a different screen.
       child: ResponsiveBuilder(
         builder: (BuildContext context, WindowSizeClass sizeClass) =>
             sizeClass == WindowSizeClass.compact
@@ -169,7 +264,19 @@ class _UsersListViewState extends State<UsersListView> {
   }
 
   Widget _buildList(BuildContext context, UsersState state) {
+    // CustomScrollView, not ListView.builder with itemExtent.
+    //
+    // The rows want a FIXED extent -- it lets the viewport compute scroll
+    // offsets without measuring children. The footer does NOT: it is a
+    // spinner, or an end-of-list line, or a message plus a Retry button, and
+    // those are different heights. `itemExtent` on a ListView applies to
+    // EVERY child, footer included, so the error footer was being squeezed
+    // into one row height and overflowing by ~32px -- clipping the Retry
+    // button. Two slivers keep the fixed extent where it helps and leave the
+    // footer free to size itself. This also matches the grid path.
     return CustomScrollView(
+      // PageStorageKey, not a plain Key: this is what persists the scroll
+      // offset across the list <-> grid swap on rotation.
       key: const PageStorageKey<String>('users_list'),
       controller: _scrollController,
       physics: const AlwaysScrollableScrollPhysics(),
@@ -180,11 +287,15 @@ class _UsersListViewState extends State<UsersListView> {
             BuildContext context,
             int index,
           ) {
+            // Renders visibleUsers, never allUsers: the search filter is
+            // the view, the pagination sequence is the model.
             final UserSummary user = state.visibleUsers[index];
             return UserListTile(
               key: Key('user_tile_${user.id}'),
               user: user,
               onTap: () => _openDetail(user),
+              selected: user.detailId == widget.selectedDetailId,
+              heroEnabled: widget.onUserSelected == null,
             );
           }, childCount: state.visibleUsers.length),
         ),
@@ -200,6 +311,9 @@ class _UsersListViewState extends State<UsersListView> {
   ) {
     final int columns = sizeClass.gridColumns;
 
+    // The footer spans the full width, so it is a separate sliver rather than
+    // a grid cell -- a "reached the end" message squeezed into one column of
+    // three reads as a broken card.
     return CustomScrollView(
       key: const PageStorageKey<String>('users_grid'),
       controller: _scrollController,
@@ -223,6 +337,8 @@ class _UsersListViewState extends State<UsersListView> {
                 key: Key('user_tile_${user.id}'),
                 user: user,
                 onTap: () => _openDetail(user),
+                selected: user.detailId == widget.selectedDetailId,
+                heroEnabled: widget.onUserSelected == null,
               );
             }, childCount: state.visibleUsers.length),
           ),
@@ -238,6 +354,11 @@ class _UsersListViewState extends State<UsersListView> {
     onRetry: _retry,
   );
 
+  /// Which footer the end of the list should show.
+  ///
+  /// Hidden entirely while a filter is active: "you've reached the end" under
+  /// a filtered subset would be read as "that is every matching user", which
+  /// is false -- more matches may exist in pages not yet loaded.
   PaginationFooterMode _footerMode(UsersState state) {
     if (state.isFiltering) return PaginationFooterMode.idle;
     if (state.status == UsersStatus.loadingMore) {

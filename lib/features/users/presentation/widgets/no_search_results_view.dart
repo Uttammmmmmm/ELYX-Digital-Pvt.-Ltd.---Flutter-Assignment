@@ -1,3 +1,4 @@
+/// A search matched nothing among the loaded users.
 library;
 
 import 'package:flutter/material.dart';
@@ -7,6 +8,13 @@ import '../strings/users_strings.dart';
 import '../../../../core/theme/app_spacing.dart';
 import 'adaptive_centered_view.dart';
 
+/// Shown when the query is non-empty and `visibleUsers` is empty.
+///
+/// Deliberately different from `EmptyView` in icon, copy and action, because
+/// it means something different and demands a different response. It must
+/// NOT imply the user does not exist on GitHub -- client-side filtering
+/// cannot know that. It says exactly what was searched: the users loaded so
+/// far. Constraint (e).
 class NoSearchResultsView extends StatelessWidget {
   const NoSearchResultsView({
     required this.query,
@@ -16,12 +24,16 @@ class NoSearchResultsView extends StatelessWidget {
     super.key,
   });
 
+  /// The query that matched nothing, echoed back so the user can spot typos.
   final String query;
 
+  /// How many users the search actually covered.
   final int loadedCount;
 
+  /// Clears the query and restores the full list.
   final VoidCallback onClearSearch;
 
+  /// Widens the corpus by loading another page. Null at the end of the list.
   final VoidCallback? onLoadMore;
 
   @override

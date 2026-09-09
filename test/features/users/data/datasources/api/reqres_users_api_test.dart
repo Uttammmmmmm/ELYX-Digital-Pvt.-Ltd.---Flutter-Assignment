@@ -11,6 +11,8 @@ import 'package:flutter_test/flutter_test.dart';
 import '../../../../../fixtures/fixture_reader.dart';
 import '../../../../../helpers/fake_http_adapter.dart';
 
+/// End-to-end over the real Dio stack -- interceptors, error mapper and all.
+/// Only the socket is faked.
 void main() {
   late RateLimitTracker tracker;
 
@@ -184,6 +186,7 @@ void main() {
 
       expect(page.users, hasLength(2));
       expect(page.users.first.displayName, 'A');
+      // No name and no handle -> the id fallback, never blank.
       expect(page.users.last.displayName, 'User 2');
     });
   });

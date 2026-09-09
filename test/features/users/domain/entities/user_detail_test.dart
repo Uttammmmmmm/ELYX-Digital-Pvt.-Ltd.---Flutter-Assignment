@@ -62,6 +62,9 @@ void main() {
   });
 
   test('the entity exposes no phone concept at all', () {
+    // A compile-time guarantee: `UserDetail` has no `phone` member, so the UI
+    // cannot render fabricated data. NEITHER supported API has a phone field,
+    // so this is a documented gap, not an unimplemented feature.
     final UserDetail detail = reqresDetail(1);
     expect(
       detail.props.length,

@@ -1,3 +1,4 @@
+/// The bottom-of-list slot.
 library;
 
 import 'package:flutter/material.dart';
@@ -6,8 +7,27 @@ import '../strings/users_strings.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 
-enum PaginationFooterMode { loading, error, end, idle }
+/// What the end of the list is currently doing.
+enum PaginationFooterMode {
+  /// A page is in flight.
+  loading,
 
+  /// The last page failed. The list above stays intact.
+  error,
+
+  /// Everything has been loaded.
+  end,
+
+  /// Nothing to show.
+  idle,
+}
+
+/// Renders the three end-of-list affordances.
+///
+/// The error mode is the important one: it keeps the loaded list on screen
+/// and puts the retry INLINE, so a failure on page 5 costs the user nothing
+/// they had already scrolled past. A full-screen error here would throw away
+/// 40 rows to report one failed request.
 class PaginationFooter extends StatelessWidget {
   const PaginationFooter({
     required this.mode,
@@ -16,10 +36,13 @@ class PaginationFooter extends StatelessWidget {
     super.key,
   });
 
+  /// Which affordance to render.
   final PaginationFooterMode mode;
 
+  /// Shown in [PaginationFooterMode.error].
   final String? errorMessage;
 
+  /// Retry the failed page.
   final VoidCallback? onRetry;
 
   @override

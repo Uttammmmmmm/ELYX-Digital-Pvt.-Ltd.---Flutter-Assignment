@@ -25,10 +25,15 @@ const UserSummary _user = UserSummary(
   accountType: 'User',
 );
 
+/// Each state widget in isolation, found by the Keys the pages rely on.
+/// Isolated rather than through the page, so a failure points at one widget.
 void main() {
   setUp(installFakeAvatars);
   tearDown(restoreAvatars);
 
+  /// [settle] must be false for anything containing a
+  /// CircularProgressIndicator: its animation schedules frames forever, so
+  /// pumpAndSettle never settles and the test times out instead of failing.
   Future<void> pump(
     WidgetTester tester,
     Widget child, {
@@ -261,6 +266,8 @@ void main() {
       bool tapped = false;
       await pump(tester, UserListTile(user: _user, onTap: () => tapped = true));
 
+      // A GitHub-shaped user has no name, so displayName is the handle and
+      // the subtitle repeats it as the @handle.
       expect(find.text('mojombo'), findsOneWidget);
       expect(find.text('@mojombo'), findsOneWidget);
 
@@ -274,6 +281,7 @@ void main() {
       await pump(
         tester,
         UserListTile(
+          // 39 characters is GitHub's maximum login length.
           user: const UserSummary(
             id: 2,
             detailId: 'a-very-long-github-login-name-abcdefghi',

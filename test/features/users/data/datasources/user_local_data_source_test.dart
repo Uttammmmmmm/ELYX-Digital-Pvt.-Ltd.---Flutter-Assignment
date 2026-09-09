@@ -12,6 +12,8 @@ import 'package:hive_ce/hive.dart';
 
 import '../../../../helpers/entity_fixtures.dart';
 
+/// Run against real Hive boxes in a temp directory rather than mocks: the
+/// thing worth testing here IS the adapter round trip through disk.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -129,8 +131,10 @@ void main() {
     });
   });
 
+  // B3: the box gained an entry per profile viewed and never lost one.
   group('detail cache is bounded', () {
     test('entries past the TTL are evicted on the next write', () async {
+      // Written directly, back-dated well past the 6h TTL.
       await detailsBox.put(
         'stale-one',
         UserDetailModel.fromEntity(
@@ -152,6 +156,7 @@ void main() {
 
     test('oldest-by-write are evicted above the ceiling', () async {
       final DateTime base = DateTime.now();
+      // Fill past the ceiling, each a minute newer than the last.
       for (int i = 0; i < CacheConstants.maxCachedDetails + 10; i++) {
         await detailsBox.put(
           'user-$i',
@@ -162,12 +167,14 @@ void main() {
         );
       }
 
+      // One more write triggers eviction.
       await dataSource.cacheUserDetail(reqresDetail(9999));
 
       expect(
         detailsBox.length,
         lessThanOrEqualTo(CacheConstants.maxCachedDetails),
       );
+      // The newest survives, the oldest does not.
       expect(dataSource.getCachedUserDetail('9999'), isNotNull);
       expect(detailsBox.containsKey('user-0'), isFalse);
     });
@@ -184,6 +191,7 @@ void main() {
     test(
       'concatenates every batch in CURSOR order, not insertion order',
       () async {
+        // Written deliberately out of order.
         await dataSource.cacheUsersPage(
           2,
           page(<UserSummary>[reqresUser(7), reqresUser(8)], nextCursor: 3),

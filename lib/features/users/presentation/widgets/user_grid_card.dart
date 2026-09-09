@@ -1,3 +1,4 @@
+/// A user as a card, for medium and expanded layouts.
 library;
 
 import 'package:flutter/material.dart';
@@ -7,19 +8,46 @@ import '../../domain/entities/user_summary.dart';
 import '../pages/user_detail_page.dart' show userAvatarHeroTag;
 import 'user_avatar.dart';
 
+/// The grid counterpart to `UserListTile`.
+///
+/// Same data, same tap target, same Hero tag -- only the arrangement differs.
+/// Reusing the tile in a grid would waste the width; a row of avatar + text
+/// pinned left looks broken in a 280dp-wide cell.
 class UserGridCard extends StatelessWidget {
-  const UserGridCard({required this.user, required this.onTap, super.key});
+  const UserGridCard({
+    required this.user,
+    required this.onTap,
+    this.selected = false,
+    this.heroEnabled = true,
+    super.key,
+  });
 
+  /// The user to render.
   final UserSummary user;
 
+  /// Navigation callback.
   final VoidCallback onTap;
+
+  /// Whether this card is the one shown in the detail pane of a split view.
+  final bool selected;
+
+  /// Whether to wrap the avatar in a [Hero]. Must be false in a split view --
+  /// see [UserListTile.heroEnabled] for why.
+  final bool heroEnabled;
 
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
 
+    final Widget avatar = UserAvatar(
+      url: user.avatarUrl,
+      login: user.displayName,
+      radius: AppSizes.avatarMd,
+    );
+
     return Card(
       clipBehavior: Clip.antiAlias,
+      color: selected ? theme.colorScheme.secondaryContainer : null,
       child: InkWell(
         onTap: onTap,
         child: Padding(
@@ -27,14 +55,10 @@ class UserGridCard extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
-              Hero(
-                tag: userAvatarHeroTag(user.id),
-                child: UserAvatar(
-                  url: user.avatarUrl,
-                  login: user.displayName,
-                  radius: AppSizes.avatarMd,
-                ),
-              ),
+              if (heroEnabled)
+                Hero(tag: userAvatarHeroTag(user.id), child: avatar)
+              else
+                avatar,
               const SizedBox(height: AppSpacing.sm),
               Text(
                 user.displayName,

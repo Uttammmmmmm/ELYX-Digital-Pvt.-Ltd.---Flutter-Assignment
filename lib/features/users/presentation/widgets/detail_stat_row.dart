@@ -1,3 +1,4 @@
+/// Public counters, when the source provides them.
 library;
 
 import 'package:flutter/material.dart';
@@ -6,9 +7,14 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../domain/entities/user_detail.dart';
 import '../strings/users_strings.dart';
 
+/// The public counters from the profile document.
+///
+/// Rendered only when [UserDetail.hasStats] -- a source that has no counters
+/// gets no row, rather than three zeros that would read as real data.
 class DetailStatRow extends StatelessWidget {
   const DetailStatRow({required this.detail, super.key});
 
+  /// The profile whose counters to show.
   final UserDetail detail;
 
   @override
