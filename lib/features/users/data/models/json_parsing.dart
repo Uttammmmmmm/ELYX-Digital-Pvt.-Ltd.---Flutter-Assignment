@@ -21,13 +21,6 @@ int asInt(Map<String, dynamic> json, String key, {int fallback = 0}) {
   return fallback;
 }
 
-bool asBool(Map<String, dynamic> json, String key, {bool fallback = false}) {
-  final Object? value = json[key];
-  if (value is bool) return value;
-  if (value is String) return value.toLowerCase() == 'true';
-  return fallback;
-}
-
 DateTime? asOptionalDate(Map<String, dynamic> json, String key) {
   final String? raw = asOptionalString(json, key);
   return raw == null ? null : DateTime.tryParse(raw);

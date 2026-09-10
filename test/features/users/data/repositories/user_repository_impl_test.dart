@@ -71,15 +71,18 @@ void main() {
       ]);
     });
 
-    test('INVALIDATES cached batches before fetching', () async {
-      when(local.getCachedUsersPage(any)).thenReturn(null);
-      when(network.isConnected).thenAnswer((_) async => true);
-      stubRemote();
+    test(
+      'INVALIDATES cached batches once the replacement has arrived',
+      () async {
+        when(local.getCachedUsersPage(any)).thenReturn(null);
+        when(network.isConnected).thenAnswer((_) async => true);
+        stubRemote();
 
-      await repository.getUsers(forceRefresh: true);
+        await repository.getUsers(forceRefresh: true);
 
-      verify(local.clearUsersPages()).called(1);
-    });
+        verify(local.clearUsersPages()).called(1);
+      },
+    );
 
     test('does NOT clear on a normal read', () async {
       when(local.getCachedUsersPage(null)).thenReturn(null);
@@ -114,7 +117,52 @@ void main() {
       },
     );
 
-    test('falls back to stale cache when the forced fetch fails', () async {
+    // Regression: the invalidation used to run before the connectivity
+    // check, so pulling to refresh in airplane mode destroyed the only copy
+    // of the data the user could still be shown.
+    test('offline: does NOT clear the cache it cannot replace', () async {
+      when(local.getCachedUsersPage(null)).thenReturn(cachedPage(stale));
+      when(network.isConnected).thenAnswer((_) async => false);
+
+      final Either<Failure, PaginatedUsers> result = await repository.getUsers(
+        forceRefresh: true,
+      );
+
+      verifyNever(local.clearUsersPages());
+      verifyZeroInteractions(api);
+      expect(namesOf(result), <String>[
+        'Cached Last1',
+      ], reason: 'the cache survives and is still served');
+    });
+
+    test('offline with an empty cache still fails cleanly', () async {
+      when(local.getCachedUsersPage(null)).thenReturn(null);
+      when(network.isConnected).thenAnswer((_) async => false);
+
+      expect(
+        await repository.getUsers(forceRefresh: true),
+        const Left<Failure, PaginatedUsers>(NetworkFailure()),
+      );
+      verifyNever(local.clearUsersPages());
+    });
+
+    test('a failed refresh leaves the cached batches intact', () async {
+      when(local.getCachedUsersPage(null)).thenReturn(cachedPage(stale));
+      when(network.isConnected).thenAnswer((_) async => true);
+      when(
+        api.fetchUsers(
+          cursor: anyNamed('cursor'),
+          perPage: anyNamed('perPage'),
+        ),
+      ).thenThrow(const ServerException('boom', statusCode: 500));
+
+      await repository.getUsers(forceRefresh: true);
+
+      verifyNever(local.clearUsersPages());
+    });
+
+    test('reports the failure instead of re-serving what the user '
+        'just asked to replace', () async {
       when(local.clearUsersPages()).thenAnswer((_) async {});
       when(local.getCachedUsersPage(null)).thenReturn(cachedPage(stale));
       when(network.isConnected).thenAnswer((_) async => true);

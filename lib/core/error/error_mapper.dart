@@ -20,7 +20,7 @@ AppException mapDioException(DioException error) {
       return const TimeoutException('Decoding the response timed out');
 
     case DioExceptionType.connectionError:
-      return const NetworkException('Could not reach api.github.com');
+      return const NetworkException('Could not reach the server');
 
     case DioExceptionType.badCertificate:
       return const ServerException('The server certificate was rejected');
@@ -53,7 +53,7 @@ AppException _mapBadResponse(DioException error) {
       );
     }
     return ServerException(
-      'Forbidden by GitHub (not a rate limit)',
+      'The server refused the request (not a rate limit)',
       statusCode: status,
     );
   }
@@ -62,14 +62,17 @@ AppException _mapBadResponse(DioException error) {
 
   if (status == 401) {
     return const ServerException(
-      'GitHub rejected the access token',
+      'The server rejected the access credentials',
       statusCode: 401,
     );
   }
 
   if (status != null && status >= 500) {
-    return ServerException('GitHub server error', statusCode: status);
+    return ServerException('Server error', statusCode: status);
   }
 
-  return ServerException('Unexpected response from GitHub', statusCode: status);
+  return ServerException(
+    'Unexpected response from the server',
+    statusCode: status,
+  );
 }

@@ -38,13 +38,16 @@ class UserRepositoryImpl implements UserRepository {
     int perPage = 10,
     bool forceRefresh = false,
   }) async {
-    if (forceRefresh) await _local.clearUsersPages();
+    // Read the cached batch up front even on a forced refresh. It is the
+    // offline fallback, and discarding it before we know a replacement is
+    // obtainable would let a pull-to-refresh in airplane mode wipe the only
+    // copy of the data the user can still be shown.
+    final CachedPageModel? cached = _local.getCachedUsersPage(cursor);
 
-    final CachedPageModel? cached = forceRefresh
-        ? null
-        : _local.getCachedUsersPage(cursor);
-
-    if (cached != null && !cached.isStale(CacheConstants.pagesTtl)) {
+    // A forced refresh never serves the cache, however fresh it looks.
+    if (!forceRefresh &&
+        cached != null &&
+        !cached.isStale(CacheConstants.pagesTtl)) {
       return Right<Failure, PaginatedUsers>(cached.toEntity());
     }
 
@@ -61,23 +64,40 @@ class UserRepositoryImpl implements UserRepository {
         perPage: perPage,
       );
 
+      // Invalidate only once the replacement is in hand. Later batches must
+      // still be dropped -- keeping them would let the user scroll straight
+      // back into pre-refresh rows -- but not a moment before the new first
+      // batch exists to replace them.
+      if (forceRefresh) await _local.clearUsersPages();
+
       await _local.cacheUsersPage(cursor, page);
       return Right<Failure, PaginatedUsers>(page);
     } on AppException catch (e) {
-      if (cached != null) {
-        return Right<Failure, PaginatedUsers>(cached.toEntity());
-      }
-      return Left<Failure, PaginatedUsers>(failureFromException(e));
+      return _pageFallback(cached, forceRefresh: forceRefresh) ??
+          Left<Failure, PaginatedUsers>(failureFromException(e));
     } catch (e, stack) {
       _reporter.recordError(e, stack, context: 'repository.getUsers');
-      if (cached != null) {
-        return Right<Failure, PaginatedUsers>(cached.toEntity());
-      }
-      return Left<Failure, PaginatedUsers>(
-        ServerFailure('Unexpected error loading users: $e'),
-      );
+      return _pageFallback(cached, forceRefresh: forceRefresh) ??
+          Left<Failure, PaginatedUsers>(
+            ServerFailure('Unexpected error loading users: $e'),
+          );
     }
   }
+
+  /// Stale-cache fallback for a failed fetch, or `null` when the failure
+  /// should surface instead.
+  ///
+  /// A forced refresh reports its failure rather than silently re-serving the
+  /// rows the user just asked to replace: the Bloc keeps the existing list on
+  /// screen and adds an error, which is honest about what happened. A
+  /// background read has no such gesture behind it, so stale data beats an
+  /// error page.
+  Either<Failure, PaginatedUsers>? _pageFallback(
+    CachedPageModel? cached, {
+    required bool forceRefresh,
+  }) => (!forceRefresh && cached != null)
+      ? Right<Failure, PaginatedUsers>(cached.toEntity())
+      : null;
 
   @override
   Future<Either<Failure, UserDetail>> getUserDetail(String detailId) async {

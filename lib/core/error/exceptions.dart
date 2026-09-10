@@ -28,7 +28,7 @@ final class RateLimitException extends AppException {
     required this.resetAt,
     this.isSecondary = false,
     int? statusCode,
-    String message = 'GitHub API rate limit exceeded',
+    String message = 'API rate limit exceeded',
   }) : super(message, statusCode: statusCode);
 
   final DateTime resetAt;

@@ -1,7 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:elyx_digital_assignment/core/error/exceptions.dart';
 import 'package:elyx_digital_assignment/core/network/dio_client.dart';
-import 'package:elyx_digital_assignment/core/network/rate_limit_tracker.dart';
 import 'package:elyx_digital_assignment/features/users/data/datasources/api/reqres_users_api.dart';
 import 'package:elyx_digital_assignment/features/users/domain/entities/paginated_users.dart';
 import 'package:elyx_digital_assignment/features/users/domain/entities/user_detail.dart';
@@ -12,10 +11,6 @@ import '../../../../../fixtures/fixture_reader.dart';
 import '../../../../../helpers/fake_http_adapter.dart';
 
 void main() {
-  late RateLimitTracker tracker;
-
-  setUp(() => tracker = RateLimitTracker());
-
   ({ReqresUsersApi api, FakeHttpAdapter adapter}) build(
     FakeReply Function(RequestOptions options) reply,
   ) {
@@ -23,7 +18,6 @@ void main() {
     final Dio dio = Dio()..httpClientAdapter = adapter;
     final ReqresUsersApi api = ReqresUsersApi(
       client: DioClient(
-        rateLimitTracker: tracker,
         baseUrl: 'https://reqres.in/api',
         headers: const <String, String>{
           'Accept': 'application/json',

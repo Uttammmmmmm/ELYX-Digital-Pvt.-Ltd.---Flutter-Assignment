@@ -13,6 +13,7 @@ import '../../features/users/data/repositories/user_repository_impl.dart';
 import '../../features/users/domain/entities/user_summary.dart';
 import '../../features/users/domain/repositories/user_repository.dart';
 import '../../features/users/domain/usecases/filter_users.dart';
+import '../../features/users/domain/usecases/get_cached_users.dart';
 import '../../features/users/domain/usecases/get_user_detail.dart';
 import '../../features/users/domain/usecases/get_users.dart';
 import '../../features/users/presentation/bloc/user_detail_bloc.dart';
@@ -20,7 +21,6 @@ import '../../features/users/presentation/bloc/users_bloc.dart';
 import '../network/dio_client.dart';
 import '../observability/error_reporter.dart';
 import '../network/network_info.dart';
-import '../network/rate_limit_tracker.dart';
 import '../storage/hive_initializer.dart';
 
 final GetIt sl = GetIt.instance;
@@ -32,7 +32,6 @@ Future<void> init({
   if (sl.isRegistered<UserRepository>()) return;
 
   sl
-    ..registerLazySingleton<RateLimitTracker>(RateLimitTracker.new)
     ..registerLazySingleton<Connectivity>(Connectivity.new)
     ..registerSingleton<HiveBoxes>(boxes)
     ..registerSingleton<ErrorReporter>(reporter);
@@ -49,7 +48,6 @@ Future<void> init({
     )
     ..registerLazySingleton<DioClient>(
       () => DioClient(
-        rateLimitTracker: sl<RateLimitTracker>(),
         baseUrl: sl<ApiSourceConfig>().baseUrl,
         headers: sl<ApiSourceConfig>().headers,
       ),
@@ -77,14 +75,17 @@ Future<void> init({
     ..registerLazySingleton<GetUserDetail>(
       () => GetUserDetail(sl<UserRepository>()),
     )
-    ..registerLazySingleton<FilterUsers>(() => const FilterUsers());
+    ..registerLazySingleton<FilterUsers>(() => const FilterUsers())
+    ..registerLazySingleton<GetCachedUsers>(
+      () => GetCachedUsers(sl<UserRepository>()),
+    );
 
   sl
     ..registerFactory<UsersBloc>(
       () => UsersBloc(
         getUsers: sl<GetUsers>(),
         filterUsers: sl<FilterUsers>(),
-        repository: sl<UserRepository>(),
+        getCachedUsers: sl<GetCachedUsers>(),
       ),
     )
     ..registerFactoryParam<UserDetailBloc, UserSummary, void>(
@@ -93,9 +94,16 @@ Future<void> init({
     );
 }
 
+/// Which backend the app talks to.
+///
+/// Defaults to `reqres`, the API the assignment brief names in prose. The
+/// brief's hyperlinks resolve to api.github.com instead, so both are
+/// implemented behind [UsersApi] -- but the one the brief *writes down* is
+/// what a fresh clone must run, and reqres is the only one of the two that
+/// paginates the way the brief specifies (`?per_page=10&page=1`).
 const String kApiSource = String.fromEnvironment(
   'API_SOURCE',
-  defaultValue: 'github',
+  defaultValue: 'reqres',
 );
 
 UsersApi _buildUsersApi() => switch (kApiSource.toLowerCase()) {

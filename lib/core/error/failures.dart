@@ -15,7 +15,7 @@ sealed class Failure extends Equatable {
 
 final class ServerFailure extends Failure {
   const ServerFailure([
-    super.message = 'GitHub is having trouble right now. Please try again.',
+    super.message = 'The server is having trouble right now. Please try again.',
   ]);
 }
 
@@ -36,8 +36,8 @@ final class RateLimitFailure extends Failure {
     required this.resetAt,
     this.isSecondary = false,
     String message =
-        'GitHub API rate limit reached. Unauthenticated '
-        'requests are capped at 60 per hour.',
+        'Rate limit reached. The API is temporarily capping how '
+        'many requests this app may make.',
   }) : super(message);
 
   final DateTime resetAt;
@@ -54,9 +54,7 @@ final class RateLimitFailure extends Failure {
 }
 
 final class NotFoundFailure extends Failure {
-  const NotFoundFailure([
-    super.message = 'That user could not be found on GitHub.',
-  ]);
+  const NotFoundFailure([super.message = 'That user could not be found.']);
 }
 
 final class ValidationFailure extends Failure {

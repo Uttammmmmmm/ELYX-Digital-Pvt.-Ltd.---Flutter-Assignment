@@ -82,7 +82,4 @@ class UserDetailModel extends UserDetail {
     if (at == null) return true;
     return (now ?? DateTime.now()).difference(at) > ttl;
   }
-
-  UserDetailModel withCacheStamp({DateTime? now}) =>
-      UserDetailModel.fromEntity(this, cachedAt: now ?? DateTime.now());
 }

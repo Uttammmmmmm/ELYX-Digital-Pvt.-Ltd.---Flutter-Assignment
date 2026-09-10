@@ -20,8 +20,6 @@ abstract final class ApiConstants {
 
   static const String headerRateLimitRemaining = 'x-ratelimit-remaining';
 
-  static const String headerRateLimitLimit = 'x-ratelimit-limit';
-
   static const String headerRateLimitReset = 'x-ratelimit-reset';
 
   static const String headerRetryAfter = 'retry-after';

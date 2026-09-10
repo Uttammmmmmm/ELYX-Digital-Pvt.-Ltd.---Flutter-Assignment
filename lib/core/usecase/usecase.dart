@@ -13,6 +13,15 @@ abstract interface class SyncUseCase<T, Params> {
   T call(Params params);
 }
 
+/// A use case that cannot fail.
+///
+/// Reserved for reads that degrade to an empty result instead of an error.
+/// Wrapping those in [Either] would force every call site to handle a [Left]
+/// that is never constructed, which reads as caution but is really noise.
+abstract interface class InfallibleUseCase<T, Params> {
+  Future<T> call(Params params);
+}
+
 class NoParams extends Equatable {
   const NoParams();
 

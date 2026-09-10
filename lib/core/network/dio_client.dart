@@ -6,11 +6,9 @@ import 'package:flutter/foundation.dart';
 import '../error/error_mapper.dart';
 import 'api_response.dart';
 import 'rate_limit_interceptor.dart';
-import 'rate_limit_tracker.dart';
 
 class DioClient {
   DioClient({
-    required RateLimitTracker rateLimitTracker,
     required String baseUrl,
     required Map<String, String> headers,
     Dio? dio,
@@ -26,7 +24,7 @@ class DioClient {
       validateStatus: (int? status) => status != null && status < 400,
     );
 
-    _dio.interceptors.add(RateLimitInterceptor(rateLimitTracker));
+    _dio.interceptors.add(RateLimitInterceptor());
 
     if (kDebugMode) {
       _dio.interceptors.add(

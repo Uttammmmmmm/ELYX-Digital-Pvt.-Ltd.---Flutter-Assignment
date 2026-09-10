@@ -10,6 +10,7 @@ import 'package:elyx_digital_assignment/features/users/domain/entities/paginated
 import 'package:elyx_digital_assignment/features/users/domain/entities/user_detail.dart';
 import 'package:elyx_digital_assignment/features/users/domain/entities/user_summary.dart';
 import 'package:elyx_digital_assignment/features/users/domain/usecases/filter_users.dart';
+import 'package:elyx_digital_assignment/features/users/domain/usecases/get_cached_users.dart';
 import 'package:elyx_digital_assignment/features/users/domain/usecases/get_user_detail.dart';
 import 'package:elyx_digital_assignment/features/users/domain/usecases/get_users.dart';
 import 'package:elyx_digital_assignment/features/users/presentation/bloc/user_detail_bloc.dart';
@@ -98,7 +99,7 @@ void main() {
     final UsersBloc bloc = UsersBloc(
       getUsers: GetUsers(repository),
       filterUsers: const FilterUsers(),
-      repository: repository,
+      getCachedUsers: GetCachedUsers(repository),
       searchDebounce: Duration.zero,
     )..add(const UsersFetched());
 

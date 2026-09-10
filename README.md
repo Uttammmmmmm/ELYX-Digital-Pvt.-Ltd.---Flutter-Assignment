@@ -6,13 +6,16 @@ the places where the assignment brief and the APIs disagree.
 
 ## Screenshots
 
-| List (light) | List (dark) | Detail | Search |
-|---|---|---|---|
-| _screenshot_ | _screenshot_ | _screenshot_ | _screenshot_ |
+| List (light) | List (dark) | Detail |
+|---|---|---|
+| ![Users list, light theme](screenshots/01-list-light.png) | ![Users list, dark theme](screenshots/02-list-dark.png) | ![User detail](screenshots/05-detail.png) |
 
-| Offline banner | Error + retry | No results | Tablet grid |
-|---|---|---|---|
-| _screenshot_ | _screenshot_ | _screenshot_ | _screenshot_ |
+| Search | No results |
+|---|---|
+| ![Searching the loaded users](screenshots/03-search.png) | ![No matches, offering Load more](screenshots/04-no-results.png) |
+
+Captured by `flutter drive` against the running app
+(`integration_test/screenshots_test.dart`), so they cannot drift from the UI.
 
 ---
 
@@ -37,17 +40,18 @@ Requires Flutter **3.41+** / Dart **3.11+**.
 ### Switching data source
 
 ```bash
-flutter run                                   # api.github.com  (default)
-flutter run --dart-define=API_SOURCE=reqres   # reqres.in
+flutter run                                   # reqres.in  (default)
+flutter run --dart-define=API_SOURCE=github   # api.github.com
 ```
 
-`api.github.com` is the default because it serves **live** data. `reqres.in` is
-a mock API that returns the same 12 invented users (George Bluth, Janet
-Weaver, …) on every request — useful as a fixture, but on a device it is
-indistinguishable from hardcoded placeholder data, so it is opt-in only.
+`reqres.in` is the default because it is the API the brief names in prose, and
+the only one of the two that paginates the way the brief specifies
+(`?per_page=10&page=1`). It returns a fixed 12-user dataset, so infinite scroll
+terminates after two pages — that is the dataset, not a defect.
 
-GitHub is unauthenticated by default (60 requests/hour per IP). To raise that
-to 5,000:
+`api.github.com` is the opt-in alternative: live data, millions of users, and a
+cursor-based `?since=` scheme. It is unauthenticated by default
+(60 requests/hour per IP). To raise that to 5,000:
 
 ```bash
 flutter run --dart-define=GITHUB_TOKEN=ghp_xxx
@@ -138,10 +142,10 @@ interchangeable: they disagree about pagination, about what a list response
 contains, and about authentication.
 
 Rather than guess which was intended, **both are implemented behind one
-interface** and selected at build time, with **GitHub as the default** because
-it is the only one of the two that serves live data — reqres returns a fixed
-12-user fixture, which on a real device is indistinguishable from static
-placeholder content:
+interface** and selected at build time, with **reqres as the default** — the
+brief's prose is what it actually asks for, and reqres is the only one of the
+two that paginates by `?per_page=10&page=1` as specified. GitHub is one
+`--dart-define` away for anyone who wants live data:
 
 ```dart
 abstract interface class UsersApi {
@@ -152,7 +156,7 @@ abstract interface class UsersApi {
 }
 ```
 
-| | reqres.in | api.github.com (default) |
+| | reqres.in (default) | api.github.com |
 |---|---|---|
 | Pagination | `?page=N&per_page=10`, `total_pages` in the body | `?since={id}` cursor, next page in the `Link` header |
 | List contains | `first_name`, `last_name`, `email`, `avatar` | `login`, `avatar_url` — **no name, no email** |
@@ -169,6 +173,10 @@ incompatible backend changed the data layer and nothing else.
 **reqres returns 12 users in total.** Infinite scroll therefore terminates
 after two pages and shows *"You've reached the end"*. That is the dataset, not
 a defect — switch to `API_SOURCE=github` to scroll indefinitely.
+
+Because either source may be active, nothing in `core/error` names a vendor:
+failure messages say *"the server"*, and only the two `UsersApi`
+implementations mention reqres or GitHub by name.
 
 ### 2. Two entity shapes, one neutral type
 
@@ -226,21 +234,29 @@ One class decides where data comes from, in this order:
 
 | # | Condition | Behaviour |
 |---|---|---|
-| 1 | `forceRefresh` | **Invalidate every cached batch**, then go remote |
-| 2 | Fresh cache (within TTL) | Serve it. **Zero requests.** |
-| 3 | Offline | Serve cache at **any** age; fail only if there is none |
-| 4 | Stale cache + online | Go remote |
-| 5 | Remote failed | Fall back to stale cache; surface the failure only if nothing is cached |
-| 6 | Remote succeeded | Cache, then return |
-| 7 | Empty batch | `hasReachedEnd: true` — a **success**, not a failure |
+| 1 | Fresh cache (within TTL), not a forced refresh | Serve it. **Zero requests.** |
+| 2 | Offline | Serve cache at **any** age; fail only if there is none |
+| 3 | Stale cache + online, or forced refresh | Go remote |
+| 4 | Remote succeeded, forced refresh | **Invalidate every cached batch**, then cache and return |
+| 5 | Remote succeeded, ordinary read | Cache, then return |
+| 6 | Remote failed, ordinary read | Fall back to stale cache; surface the failure only if nothing is cached |
+| 7 | Remote failed, forced refresh | Surface the failure; the Bloc keeps the existing rows on screen |
+| 8 | Empty batch | `hasReachedEnd: true` — a **success**, not a failure |
 
 TTLs: **15 minutes** for list batches, **6 hours** for profiles. The profile
 cache is bounded — expired entries are evicted on write, then oldest-by-write
 above 200 — because a TTL controls freshness, not size.
 
-Step 1's invalidation is not optional: overwriting only the requested batch
-leaves later pages holding pre-refresh data, so within the TTL the user scrolls
-straight back into the rows they just pulled to replace.
+The invalidation in step 4 is not optional: overwriting only the requested
+batch leaves later pages holding pre-refresh data, so within the TTL the user
+scrolls straight back into the rows they just pulled to replace.
+
+**It is deliberately the last thing that happens, not the first.** Clearing up
+front — before the connectivity check — means a pull-to-refresh in airplane
+mode destroys the only copy of the data the user could still be shown, and
+returns an error having deleted the answer. The cache is dropped only once its
+replacement is in hand. Three regression tests cover it, each verified to fail
+against the earlier ordering.
 
 On cold start the list is seeded from **everything ever cached**, so offline
 search covers previous sessions rather than only the current one.
@@ -275,6 +291,14 @@ fling issue **one** request instead of three, and `restartable() + 300ms`
 debounces search. A boolean `_isLoading` guard is forgettable on an early
 return; a transformer is not.
 
+Transformers only serialise requests **within one event type**, though, and a
+refresh and an append are different events. So `UsersBloc` also carries a
+`_generation` counter, bumped whenever the list is replaced wholesale. A page
+request that started before a refresh finds its generation stale and discards
+its result — without it the pre-refresh page appends onto the refreshed list
+and drags the cursor back to the older sequence, so pagination resumes from
+rows the user has already seen.
+
 The list uses **one flat state class with a status enum**, not a sealed union.
 The deciding case is a failure mid-scroll: a union either discards the 40 users
 already on screen or copies them into every variant anyway. A status field
@@ -292,8 +316,11 @@ inline footer error needs.
 | Empty API response | `hasReachedEnd: true` — a success; friendly "No users available" | `paginated_users.dart`, `empty_view.dart` |
 | Search special characters | `contains()`, never `RegExp`; trim + whitespace collapse; 13 metacharacter tests | `filter_users.dart` |
 | Back navigation / leaks | Blocs are factories; `BlocProvider` closes on pop; `isClosed` after every await; controllers disposed | `injection_container.dart`, `users_bloc.dart`, `users_list_view.dart` |
-| UI responsiveness | M3 window size classes; list ↔ 2/3-column grid; `PageStorageKey` preserves scroll on rotation; text scale to 2.0 | `responsive.dart`, `users_list_view.dart` |
+| UI responsiveness | M3 window size classes; list ↔ 2/3-column grid ↔ two-pane split view; `PageStorageKey` preserves scroll on rotation; text scale to 2.0 | `responsive.dart`, `users_list_view.dart`, `users_split_view.dart` |
 | Stale cached data | TTLs + `forceRefresh` invalidation; bounded profile cache; schema-version guard drops incompatible boxes | `user_repository_impl.dart`, `hive_initializer.dart` |
+| Refresh while offline | Cache is invalidated only *after* a replacement arrives, so the gesture cannot destroy the last copy | `user_repository_impl.dart` |
+| Refresh racing an in-flight page | `_generation` counter discards the overtaken request instead of splicing two list snapshots | `users_bloc.dart` |
+| Pop during a pull-to-refresh | `firstWhere` on a closing Bloc stream is caught, so `RefreshIndicator` ends quietly | `users_list_view.dart` |
 | Infinite scroll stalls on tall screens | Post-frame viewport fill, guarded so it cannot loop | `users_list_view.dart` |
 | Rate limiting / 429 | Distinct failure carrying `resetAt`; countdown with Retry **disabled**; no further requests until reset | `rate_limit_interceptor.dart`, `users_state.dart` |
 | Deleted account (404) | `NotFoundFailure` — the one failure that must **not** fall back to cache | `user_repository_impl.dart` |
@@ -329,27 +356,22 @@ overflowing a short viewport — each verified to fail against the pre-fix code.
 
 ## Known limitations
 
-1. **Only reqres has been exercised end to end on a device.** The GitHub source
-   was verified against the live API during development; the reqres source is
-   covered by tests against a faked socket, not a real device run.
-2. **No master-detail split view on tablets.** The grid uses the extra width,
-   but there is no two-pane layout. Split-view navigation interacts with the
-   back button and deep links in ways widget tests at a fixed surface size will
-   not catch, so it was left out rather than shipped unverified.
-3. **`hive_generator` is unusable on this SDK** (it pins `analyzer <7.0.0`,
+1. **Both sources were exercised against their live APIs during development**,
+   but the device screenshots come from the reqres build only.
+2. **`hive_generator` is unusable on this SDK** (it pins `analyzer <7.0.0`,
    which cannot coexist with `bloc_test`), so the project uses **`hive_ce`** —
    the maintained fork, same API and same `@HiveType` annotations.
-4. **Diacritics are not folded in search.** `"jose"` will not match `"José"`.
+3. **Diacritics are not folded in search.** `"jose"` will not match `"José"`.
    Dart ships no Unicode normaliser in core. This is a real limitation now that
    search covers free-form display names, and would be the first thing I fixed
    on a non-Anglophone dataset.
-5. **Links copy to the clipboard** rather than opening a browser.
+4. **Links copy to the clipboard** rather than opening a browser.
    `url_launcher` needs an Android `<queries>` manifest entry to work on API
    30+, which cannot be verified without a device.
-6. **No localisation.** Copy is centralised in `UsersStrings` — which is the
+5. **No localisation.** Copy is centralised in `UsersStrings` — which is the
    seam an ARB-based setup would replace — but is hardcoded English, and
    `formatClockTime` does not respect a 24-hour locale preference.
-7. **The launcher icon is a generated placeholder**, not a designed mark.
-8. **Widget tests never close their blocs.** `Bloc.close()` never completes
+6. **The launcher icon is a generated placeholder**, not a designed mark.
+7. **Widget tests never close their blocs.** `Bloc.close()` never completes
    inside `testWidgets` (its clock is faked); it completes normally in plain
    `test()` and `bloc_test`. Documented at the top of each affected file.
