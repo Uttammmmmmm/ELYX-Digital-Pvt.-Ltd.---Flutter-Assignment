@@ -1,7 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:elyx_digital_assignment/core/error/exceptions.dart';
 import 'package:elyx_digital_assignment/core/network/dio_client.dart';
-import 'package:elyx_digital_assignment/core/network/rate_limit_tracker.dart';
 import 'package:elyx_digital_assignment/features/users/data/datasources/api/github_users_api.dart';
 import 'package:elyx_digital_assignment/features/users/domain/entities/paginated_users.dart';
 import 'package:elyx_digital_assignment/features/users/domain/entities/user_detail.dart';
@@ -12,10 +11,6 @@ import '../../../../../fixtures/fixture_reader.dart';
 import '../../../../../helpers/fake_http_adapter.dart';
 
 void main() {
-  late RateLimitTracker tracker;
-
-  setUp(() => tracker = RateLimitTracker());
-
   ({GitHubUsersApi api, FakeHttpAdapter adapter}) build(
     FakeReply Function(RequestOptions options) reply,
   ) {
@@ -24,7 +19,6 @@ void main() {
     return (
       api: GitHubUsersApi(
         client: DioClient(
-          rateLimitTracker: tracker,
           baseUrl: 'https://api.github.com',
           headers: const <String, String>{'User-Agent': 'test'},
           dio: dio,
@@ -198,8 +192,6 @@ void main() {
             ),
           ),
         );
-        expect(tracker.isExhausted, isTrue);
-        expect(tracker.snapshot!.limit, 60);
       },
     );
 
@@ -218,29 +210,6 @@ void main() {
         harness.api.fetchUsers(),
         throwsA(isA<ServerException>()),
       );
-      expect(tracker.isExhausted, isFalse);
-      expect(tracker.snapshot!.remaining, 57);
-    });
-
-    test('the budget is recorded on a SUCCESSFUL response too', () async {
-      final harness = build(
-        (_) => FakeReply(
-          statusCode: 200,
-          body: fixture('users_list.json'),
-          headers: <String, List<String>>{
-            'x-ratelimit-limit': const <String>['60'],
-            'x-ratelimit-remaining': const <String>['57'],
-          },
-        ),
-      );
-
-      await harness.api.fetchUsers();
-
-      expect(
-        tracker.snapshot!.remaining,
-        57,
-        reason: 'lets the UI warn before the quota is gone',
-      );
     });
 
     test('a connection failure becomes NetworkException', () async {
@@ -252,7 +221,6 @@ void main() {
       );
       final GitHubUsersApi api = GitHubUsersApi(
         client: DioClient(
-          rateLimitTracker: tracker,
           baseUrl: 'https://api.github.com',
           headers: const <String, String>{},
           dio: Dio()..httpClientAdapter = adapter,

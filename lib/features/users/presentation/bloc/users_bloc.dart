@@ -5,10 +5,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/bloc/event_transformers.dart';
 import '../../../../core/error/failures.dart';
+import '../../../../core/usecase/usecase.dart';
 import '../../domain/entities/paginated_users.dart';
 import '../../domain/entities/user_summary.dart';
-import '../../domain/repositories/user_repository.dart';
 import '../../domain/usecases/filter_users.dart';
+import '../../domain/usecases/get_cached_users.dart';
 import '../../domain/usecases/get_users.dart';
 import 'users_event.dart';
 import 'users_state.dart';
@@ -17,11 +18,11 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
   UsersBloc({
     required GetUsers getUsers,
     required FilterUsers filterUsers,
-    required UserRepository repository,
+    required GetCachedUsers getCachedUsers,
     Duration searchDebounce = const Duration(milliseconds: 300),
   }) : _getUsers = getUsers,
        _filterUsers = filterUsers,
-       _repository = repository,
+       _getCachedUsers = getCachedUsers,
        super(const UsersState()) {
     on<UsersFetched>(_onFetched);
 
@@ -41,15 +42,25 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
 
   final GetUsers _getUsers;
   final FilterUsers _filterUsers;
+  final GetCachedUsers _getCachedUsers;
 
-  final UserRepository _repository;
+  /// Bumped every time the list is replaced wholesale (first load, refresh,
+  /// first-page retry).
+  ///
+  /// `droppable()` serialises requests *within* one event type, but a refresh
+  /// and an append are different events with different transformers, so a
+  /// refresh can land while a page request is still in flight. Without this
+  /// counter the older page appends onto the refreshed list and drags the
+  /// cursor back to its own successor, so pagination resumes from the
+  /// pre-refresh sequence and re-serves rows the user has already seen.
+  int _generation = 0;
 
   Future<void> _onFetched(UsersFetched event, Emitter<UsersState> emit) async {
     if (state.status != UsersStatus.initial) return;
 
     emit(state.copyWith(status: UsersStatus.loading, clearFailure: true));
 
-    final List<UserSummary> cached = await _repository.getCachedUsers();
+    final List<UserSummary> cached = await _getCachedUsers(const NoParams());
     if (isClosed) return;
     if (cached.isNotEmpty) {
       emit(_filtered(state.copyWith(allUsers: cached), state.searchQuery));
@@ -115,11 +126,20 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
     required bool replace,
     bool forceRefresh = false,
   }) async {
+    // A replacing load defines a new list identity; an appending load belongs
+    // to the one that is current when it starts.
+    final int generation = replace ? ++_generation : _generation;
+
     final Either<Failure, PaginatedUsers> result = await _getUsers(
       GetUsersParams(cursor: cursor, forceRefresh: forceRefresh),
     );
 
     if (isClosed) return;
+
+    // A refresh overtook this request while it was in flight. Its page
+    // describes a list that no longer exists, so drop it rather than splice
+    // two snapshots together.
+    if (generation != _generation) return;
 
     emit(
       result.fold(

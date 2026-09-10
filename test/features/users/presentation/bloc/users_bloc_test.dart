@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:bloc_test/bloc_test.dart';
 import 'package:dartz/dartz.dart';
 import 'package:elyx_digital_assignment/core/error/failures.dart';
 import 'package:elyx_digital_assignment/features/users/domain/entities/paginated_users.dart';
 import 'package:elyx_digital_assignment/features/users/domain/entities/user_summary.dart';
 import 'package:elyx_digital_assignment/features/users/domain/usecases/filter_users.dart';
+import 'package:elyx_digital_assignment/features/users/domain/usecases/get_cached_users.dart';
 import 'package:elyx_digital_assignment/features/users/domain/usecases/get_users.dart';
 import 'package:elyx_digital_assignment/features/users/presentation/bloc/users_bloc.dart';
 import 'package:elyx_digital_assignment/features/users/presentation/bloc/users_event.dart';
@@ -37,7 +39,7 @@ void main() {
   UsersBloc build({Duration debounce = Duration.zero}) => UsersBloc(
     getUsers: GetUsers(repository),
     filterUsers: const FilterUsers(),
-    repository: repository,
+    getCachedUsers: GetCachedUsers(repository),
     searchDebounce: debounce,
   );
 
@@ -401,5 +403,89 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 80));
     },
     errors: () => <Matcher>[],
+  );
+  // Regression: `droppable()` serialises requests within one event type, but
+  // a refresh and an append are different events with different transformers.
+  // A refresh landing mid-append used to splice the pre-refresh page onto the
+  // refreshed list and drag the cursor back to the older sequence.
+  test(
+    'a refresh discards a page request that was already in flight',
+    () async {
+      final Completer<Either<Failure, PaginatedUsers>> slowPage2 =
+          Completer<Either<Failure, PaginatedUsers>>();
+
+      when(
+        repository.getUsers(
+          cursor: null,
+          perPage: anyNamed('perPage'),
+          forceRefresh: false,
+        ),
+      ).thenAnswer(
+        (_) async => Right<Failure, PaginatedUsers>(
+          PaginatedUsers.fromBatch(users: _page1, nextCursor: 2),
+        ),
+      );
+
+      // Page 2 hangs until we release it.
+      when(
+        repository.getUsers(
+          cursor: 2,
+          perPage: anyNamed('perPage'),
+          forceRefresh: anyNamed('forceRefresh'),
+        ),
+      ).thenAnswer((_) => slowPage2.future);
+
+      // The refresh returns a completely different first page.
+      when(
+        repository.getUsers(
+          cursor: null,
+          perPage: anyNamed('perPage'),
+          forceRefresh: true,
+        ),
+      ).thenAnswer(
+        (_) async => Right<Failure, PaginatedUsers>(
+          PaginatedUsers.fromBatch(
+            users: <UserSummary>[_u(90, 'ninety'), _u(91, 'ninetyone')],
+            nextCursor: 92,
+          ),
+        ),
+      );
+
+      final UsersBloc bloc = build();
+      addTearDown(bloc.close);
+
+      bloc.add(const UsersFetched());
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      bloc.add(const UsersNextPageRequested()); // starts, then hangs
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      bloc.add(const UsersRefreshed()); // overtakes it
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(bloc.state.allUsers.map((UserSummary u) => u.id), <int>[90, 91]);
+
+      // The stale page finally lands.
+      slowPage2.complete(
+        Right<Failure, PaginatedUsers>(
+          PaginatedUsers.fromBatch(
+            users: <UserSummary>[_u(3, 'three'), _u(4, 'four')],
+            nextCursor: 5,
+          ),
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(
+        bloc.state.allUsers.map((UserSummary u) => u.id),
+        <int>[90, 91],
+        reason: 'pre-refresh users must not append onto the refreshed list',
+      );
+      expect(
+        bloc.state.nextCursor,
+        92,
+        reason: 'the cursor must not rewind to the pre-refresh sequence',
+      );
+    },
   );
 }

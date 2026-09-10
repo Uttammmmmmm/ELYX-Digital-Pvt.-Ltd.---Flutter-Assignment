@@ -6,7 +6,6 @@ import 'package:elyx_digital_assignment/core/di/injection_container.dart';
 import 'package:elyx_digital_assignment/core/error/failures.dart';
 import 'package:elyx_digital_assignment/core/network/dio_client.dart';
 import 'package:elyx_digital_assignment/core/network/network_info.dart';
-import 'package:elyx_digital_assignment/core/network/rate_limit_tracker.dart';
 import 'package:elyx_digital_assignment/core/storage/hive_initializer.dart';
 import 'package:elyx_digital_assignment/features/users/data/datasources/api/github_users_api.dart';
 import 'package:elyx_digital_assignment/features/users/data/datasources/api/reqres_users_api.dart';
@@ -18,6 +17,7 @@ import 'package:elyx_digital_assignment/features/users/domain/entities/paginated
 import 'package:elyx_digital_assignment/features/users/domain/entities/user_summary.dart';
 import 'package:elyx_digital_assignment/features/users/domain/repositories/user_repository.dart';
 import 'package:elyx_digital_assignment/features/users/domain/usecases/filter_users.dart';
+import 'package:elyx_digital_assignment/features/users/domain/usecases/get_cached_users.dart';
 import 'package:elyx_digital_assignment/features/users/domain/usecases/get_user_detail.dart';
 import 'package:elyx_digital_assignment/features/users/domain/usecases/get_users.dart';
 import 'package:elyx_digital_assignment/features/users/presentation/bloc/user_detail_bloc.dart';
@@ -58,7 +58,6 @@ void main() {
 
   group('graph', () {
     test('every registration resolves', () {
-      expect(sl<RateLimitTracker>(), isNotNull);
       expect(sl<UsersApi>(), isNotNull);
       expect(sl<DioClient>(), isNotNull);
       expect(sl<HiveBoxes>(), isNotNull);
@@ -68,28 +67,29 @@ void main() {
       expect(sl<GetUsers>(), isNotNull);
       expect(sl<GetUserDetail>(), isNotNull);
       expect(sl<FilterUsers>(), isNotNull);
+      expect(sl<GetCachedUsers>(), isNotNull);
     });
 
-    test('github is the default source -- reqres serves a static fixture', () {
-      expect(kApiSource, 'github');
-      expect(sl<UsersApi>(), isA<GitHubUsersApi>());
-      expect(sl<UsersApi>().baseUrl, 'https://api.github.com');
+    test('reqres is the default source -- it is the API the brief names', () {
+      expect(kApiSource, 'reqres');
+      expect(sl<UsersApi>(), isA<ReqresUsersApi>());
+      expect(sl<UsersApi>().baseUrl, 'https://reqres.in/api');
       expect(
-        sl<UsersApi>().headers['Accept'],
-        'application/vnd.github+json',
-        reason: 'GitHub needs its versioned media type',
+        sl<UsersApi>().headers['x-api-key'],
+        isNotEmpty,
+        reason: 'reqres 401s without an API key',
       );
     });
 
     test('the Dio client takes its host and headers from the source', () {
       expect(sl<DioClient>(), isNotNull);
-      expect(sl<UsersApi>().baseUrl, contains('api.github.com'));
+      expect(sl<UsersApi>().baseUrl, contains('reqres.in'));
     });
 
     test('registered against the ABSTRACT types only', () {
       expect(sl<UserRepository>(), isNotNull);
       expect(
-        sl.isRegistered<ReqresUsersApi>(),
+        sl.isRegistered<GitHubUsersApi>(),
         isFalse,
         reason: 'consumers must not reach for an implementation',
       );
@@ -98,11 +98,6 @@ void main() {
 
   group('lifetimes', () {
     test('app-scoped services are singletons', () {
-      expect(
-        sl<RateLimitTracker>(),
-        same(sl<RateLimitTracker>()),
-        reason: 'two trackers would each see half the responses',
-      );
       expect(sl<DioClient>(), same(sl<DioClient>()));
       expect(sl<UsersApi>(), same(sl<UsersApi>()));
       expect(sl<UserRepository>(), same(sl<UserRepository>()));

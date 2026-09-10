@@ -98,9 +98,18 @@ class _UsersListViewState extends State<UsersListView> {
   Future<void> _onRefresh() async {
     final UsersBloc bloc = context.read<UsersBloc>()
       ..add(const UsersRefreshed());
-    await bloc.stream.firstWhere(
-      (UsersState s) => s.status != UsersStatus.refreshing,
-    );
+
+    try {
+      await bloc.stream.firstWhere(
+        (UsersState s) => s.status != UsersStatus.refreshing,
+      );
+    } on StateError {
+      // The bloc closed before the refresh settled -- the page was popped
+      // mid-pull. `firstWhere` completes with an error when its stream ends
+      // without a match, and that error would surface as an unhandled
+      // exception through RefreshIndicator's future. There is nothing left to
+      // show, so end the indicator quietly.
+    }
   }
 
   void _openDetail(UserSummary user) {

@@ -250,18 +250,5 @@ void main() {
       expect(dataSource.getCachedUsersPage(null), isNull);
       expect(dataSource.getCachedUserDetail('1'), isNotNull);
     });
-
-    test('clearAll empties both', () async {
-      await dataSource.cacheUsersPage(
-        null,
-        page(<UserSummary>[reqresUser(1)], nextCursor: 2),
-      );
-      await dataSource.cacheUserDetail(reqresDetail(1));
-
-      await dataSource.clearAll();
-
-      expect(dataSource.getAllCachedUsers(), isEmpty);
-      expect(dataSource.getCachedUserDetail('1'), isNull);
-    });
   });
 }

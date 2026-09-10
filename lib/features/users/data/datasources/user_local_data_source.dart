@@ -22,8 +22,6 @@ abstract interface class UserLocalDataSource {
   List<UserSummary> getAllCachedUsers();
 
   Future<void> clearUsersPages();
-
-  Future<void> clearAll();
 }
 
 class UserLocalDataSourceImpl implements UserLocalDataSource {
@@ -89,12 +87,6 @@ class UserLocalDataSourceImpl implements UserLocalDataSource {
 
   @override
   Future<void> clearUsersPages() => _pages.clear();
-
-  @override
-  Future<void> clearAll() async {
-    await _pages.clear();
-    await _details.clear();
-  }
 
   Future<void> _evictDetails({DateTime? now}) async {
     final DateTime at = now ?? DateTime.now();

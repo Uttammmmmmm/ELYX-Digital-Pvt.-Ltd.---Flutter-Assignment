@@ -176,15 +176,6 @@ class MockUserLocalDataSource extends _i1.Mock
             returnValueForMissingStub: _i7.Future<void>.value(),
           )
           as _i7.Future<void>);
-
-  @override
-  _i7.Future<void> clearAll() =>
-      (super.noSuchMethod(
-            Invocation.method(#clearAll, []),
-            returnValue: _i7.Future<void>.value(),
-            returnValueForMissingStub: _i7.Future<void>.value(),
-          )
-          as _i7.Future<void>);
 }
 
 /// A class which mocks [NetworkInfo].
